@@ -66,3 +66,7 @@ config/gee_credentials.json
 # Temporary files
 *.tmp
 *.temp
+
+*.csv
+*.geojson*.csv
+*.geojson

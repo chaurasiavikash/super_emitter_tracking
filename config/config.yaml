@@ -8,15 +8,14 @@ gee:
   service_account_file: null  # Path to service account JSON file
   max_retries: 3
   timeout_seconds: 300
-base_path: "/home/vikash/Documents/super-emitter-tracking"
+
 # Data collection parameters
 data:
-  start_date: "2023-01-01"
-  end_date: "2023-12-31"
+  start_date: "2023-06-01"
+  end_date: "2023-06-07"
   region_of_interest:
-    type: "global"  # global, bbox, polygon, facility_list
-    coordinates: null  # [west, south, east, north] for bbox
-    buffer_km: 50  # Buffer around facilities for analysis
+    type: "bbox"
+    coordinates: [-103.0, 31.5, -101.5, 33.0]  # Permian Basin
   
   # Data sources
   tropomi:
@@ -191,8 +190,9 @@ processing:
     max_size_gb: 10
     ttl_hours: 24
     
-  # Output formats
+  # Output settings - FIXED: Added the missing output configuration
   output:
+    base_path: "/home/vikash/Documents/super-emitter-tracking/data/outputs"
     formats: ["csv", "geojson", "netcdf", "parquet"]
     compression: "gzip"
     precision: 3  # decimal places

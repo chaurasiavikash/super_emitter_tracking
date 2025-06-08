@@ -454,7 +454,38 @@ class SuperEmitterPipeline:
     def _compile_results(self, detection_results: dict, tracking_results: dict,
                         analysis_results: dict, alerts: dict) -> dict:
         """Compile comprehensive pipeline results."""
-        
+
+        # Handle case where super_emitters might be None, empty, or a DataFrame
+        super_emitters = detection_results.get('super_emitters', [])
+
+        # Convert to DataFrame if it's not already, or handle empty cases
+        if super_emitters is None:
+            super_emitters = pd.DataFrame()
+        elif not isinstance(super_emitters, pd.DataFrame):
+            if hasattr(super_emitters, '__len__') and len(super_emitters) == 0:
+                super_emitters = pd.DataFrame()
+            else:
+                # Try to convert to DataFrame if it's a list or other iterable
+                try:
+                    super_emitters = pd.DataFrame(super_emitters)
+                except:
+                    super_emitters = pd.DataFrame()
+
+        # Safely calculate metrics
+        total_super_emitters = len(super_emitters)
+
+        if total_super_emitters > 0 and 'estimated_emission_rate_kg_hr' in super_emitters.columns:
+            total_emission_rate = float(super_emitters['estimated_emission_rate_kg_hr'].sum())
+            mean_emission_rate = float(super_emitters['estimated_emission_rate_kg_hr'].mean())
+        else:
+            total_emission_rate = 0.0
+            mean_emission_rate = 0.0
+
+        if total_super_emitters > 0 and 'facility_id' in super_emitters.columns:
+            facility_associations = int(super_emitters['facility_id'].notna().sum())
+        else:
+            facility_associations = 0
+
         return {
             'pipeline_info': {
                 'run_id': self.run_id,
@@ -462,12 +493,12 @@ class SuperEmitterPipeline:
                 'output_directory': str(self.output_dir)
             },
             'detection_summary': {
-                'total_super_emitters': len(detection_results['super_emitters']),
-                'total_emission_rate_kg_hr': detection_results['super_emitters']['estimated_emission_rate_kg_hr'].sum() if len(detection_results['super_emitters']) > 0 else 0,
-                'mean_emission_rate_kg_hr': detection_results['super_emitters']['estimated_emission_rate_kg_hr'].mean() if len(detection_results['super_emitters']) > 0 else 0,
-                'facility_associations': detection_results['super_emitters']['facility_id'].notna().sum() if len(detection_results['super_emitters']) > 0 else 0
+                'total_super_emitters': total_super_emitters,
+                'total_emission_rate_kg_hr': total_emission_rate,
+                'mean_emission_rate_kg_hr': mean_emission_rate,
+                'facility_associations': facility_associations
             },
-            'tracking_summary': tracking_results['tracking_summary'],
+            'tracking_summary': tracking_results.get('tracking_summary', {}),
             'analysis_summary': {
                 'trends_analyzed': analysis_results.get('trends_analyzed', 0),
                 'significant_trends': analysis_results.get('significant_trends', 0),
@@ -476,7 +507,7 @@ class SuperEmitterPipeline:
             'alert_summary': {
                 'total_alerts': len(alerts.get('alerts', [])),
                 'high_priority_alerts': len([a for a in alerts.get('alerts', []) if a.get('severity') == 'high']),
-                'alert_types': list(set(a.get('alert_type') for a in alerts.get('alerts', [])))
+                'alert_types': list(set(a.get('alert_type') for a in alerts.get('alerts', []))) if alerts.get('alerts') else []
             },
             'data_quality': detection_results.get('quality_flags', {}),
             'validation_results': detection_results.get('validation_results', {})
@@ -825,8 +856,8 @@ Examples:
             if results['detection_summary']['total_emission_rate_kg_hr'] > 0:
                 print(f"🔥 Total emissions: {results['detection_summary']['total_emission_rate_kg_hr']:.1f} kg/hr")
             print(f"🚨 Generated {results['alert_summary']['total_alerts']} alerts")
-            print(f"📁 Results: {results['pipeline_info']['output_directory']}")
-            
+            output_dir = results.get('pipeline_info', {}).get('output_directory', 'data/outputs')
+            print(f"📁 Results: {output_dir}")
         elif args.mode == 'historical':
             if not args.start_date or not args.end_date:
                 parser.error("Historical mode requires --start-date and --end-date")

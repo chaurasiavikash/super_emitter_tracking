@@ -1,0 +1,103 @@
+# ============================================================================
+# Emitter Database Configuration
+# ============================================================================
+
+# Database connection settings
+database:
+  # File-based database settings
+  files:
+    facility_database: "../data/super_emitters/facility_database.geojson"
+    known_emitters: "../data/super_emitters/known_emitters.csv"
+    
+  # Quality thresholds for database entries
+  quality:
+    min_confidence: 0.7
+    min_detections: 3
+    max_uncertainty_ppb: 50.0
+    
+  # Update settings
+  updates:
+    auto_update: true
+    update_frequency_days: 7
+    backup_old_versions: true
+    max_backups: 5
+
+# Known super-emitter regions for validation
+validation_regions:
+  permian_basin:
+    name: "Permian Basin"
+    bounds: [-103.5, 31.0, -101.0, 33.5]
+    country: "USA"
+    type: "Oil & Gas"
+    expected_emitters: 50
+    
+  bakken_formation:
+    name: "Bakken Formation" 
+    bounds: [-104.5, 47.0, -102.5, 49.0]
+    country: "USA"
+    type: "Oil & Gas"
+    expected_emitters: 20
+    
+  marcellus_shale:
+    name: "Marcellus Shale"
+    bounds: [-81.0, 39.5, -77.0, 42.0]
+    country: "USA"
+    type: "Oil & Gas"
+    expected_emitters: 30
+
+# Facility type classifications
+facility_types:
+  oil_gas:
+    name: "Oil & Gas"
+    emission_range_kg_hr: [500, 5000]
+    typical_enhancement_ppb: [30, 200]
+    spatial_extent_km: [1, 10]
+    
+  landfill:
+    name: "Landfill"
+    emission_range_kg_hr: [200, 3000]
+    typical_enhancement_ppb: [20, 150]
+    spatial_extent_km: [0.5, 5]
+    
+  agriculture:
+    name: "Agriculture"
+    emission_range_kg_hr: [100, 2000]
+    typical_enhancement_ppb: [10, 100]
+    spatial_extent_km: [0.2, 3]
+    
+  wastewater:
+    name: "Wastewater Treatment"
+    emission_range_kg_hr: [50, 1000]
+    typical_enhancement_ppb: [10, 80]
+    spatial_extent_km: [0.1, 2]
+
+# Data sources for validation
+external_sources:
+  ghgsat:
+    name: "GHGSat"
+    api_enabled: false
+    confidence_weight: 0.9
+    
+  aviris:
+    name: "AVIRIS-NG"
+    data_path: null
+    confidence_weight: 0.8
+    
+  ground_stations:
+    name: "Ground-based measurements"
+    data_path: null
+    confidence_weight: 1.0
+
+# Matching criteria for associating detections with known facilities
+matching:
+  spatial:
+    max_distance_km: 5.0
+    confidence_decay_km: 2.0
+    
+  temporal:
+    max_time_difference_hours: 24
+    temporal_weight: 0.8
+    
+  emission_rate:
+    tolerance_percent: 50.0
+    rate_weight: 0.6

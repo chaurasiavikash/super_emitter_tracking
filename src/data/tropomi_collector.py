@@ -1,5 +1,5 @@
 # ============================================================================
-# FILE: src/data/tropomi_collector.py
+# FILE: src/data/tropomi_collector.py - FIXED VERSION
 # ============================================================================
 import ee
 import numpy as np
@@ -31,31 +31,36 @@ class TROPOMICollector:
         self._initialize_gee()
         
     def _initialize_gee(self):
+        """Initialize Google Earth Engine connection."""
+        try:
+            if self.gee_config.get('service_account_file'):
+                credentials = ee.ServiceAccountCredentials(
+                    email=None,
+                    key_file=self.gee_config['service_account_file']
+                )
+                ee.Initialize(credentials)
+            else:
+                ee.Initialize(project=self.gee_config.get('project_id', None))
             
-            """Initialize Google Earth Engine connection."""
-            try:
-                project_id = self.gee_config.get('project_id')
-                service_account_file = self.gee_config.get('service_account_file')
-                if service_account_file:
-                    credentials = ee.ServiceAccountCredentials(
-                        email=None,
-                        key_file=service_account_file
-                    )
-                    if project_id:
-                        ee.Initialize(credentials, project=project_id)
-                    else:
-                        ee.Initialize(credentials)
-                else:
-                    if project_id:
-                        ee.Initialize(project=project_id)
-                    else:
-                        ee.Initialize()
-                
-                logger.info("Google Earth Engine initialized successfully")
-                
-            except Exception as e:
-                logger.error(f"Failed to initialize Google Earth Engine: {e}")
-                raise    
+            logger.info("Google Earth Engine initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize Google Earth Engine: {e}")
+            raise
+    
+    def create_region_geometry(self) -> ee.Geometry:
+        """Create Earth Engine geometry from config."""
+        roi = self.data_config['region_of_interest']
+        
+        if roi['type'] == 'bbox':
+            coords = roi['coordinates']
+            return ee.Geometry.Rectangle(coords)
+        elif roi['type'] == 'polygon':
+            return ee.Geometry.Polygon(roi['coordinates'])
+        elif roi['type'] == 'global':
+            return ee.Geometry.Rectangle([-180, -85, 180, 85])
+        else:
+            raise ValueError(f"Unsupported region type: {roi['type']}")
     
     def collect_data(self, start_date: str, end_date: str, 
                     region: Optional[Dict] = None) -> Optional[xr.Dataset]:
@@ -77,9 +82,9 @@ class TROPOMICollector:
             if region:
                 geometry = self._create_geometry(region)
             else:
-                geometry = self._create_geometry(self.data_config['region_of_interest'])
+                geometry = self.create_region_geometry()
             
-            # Get TROPOMI collection
+            # Get TROPOMI collection with correct band names
             collection = self._get_tropomi_collection(start_date, end_date, geometry)
             
             # Check if data is available
@@ -123,7 +128,7 @@ class TROPOMICollector:
     
     def _get_tropomi_collection(self, start_date: str, end_date: str, 
                                geometry: ee.Geometry) -> ee.ImageCollection:
-        """Get filtered TROPOMI image collection."""
+        """Get filtered TROPOMI image collection with correct bands."""
         
         collection_name = self.tropomi_config['collection']
         
@@ -132,36 +137,40 @@ class TROPOMICollector:
                      .filterDate(start_date, end_date)
                      .filterBounds(geometry))
         
-        # Apply quality filters
+        # Select available bands (based on diagnostic output)
+        # Primary methane data and uncertainty
+        bands_to_select = [
+            'CH4_column_volume_mixing_ratio_dry_air',
+            'CH4_column_volume_mixing_ratio_dry_air_uncertainty'
+        ]
+        
+        collection = collection.select(bands_to_select)
+        
+        # Apply quality filters using uncertainty as a proxy for quality
         collection = self._apply_quality_filters(collection)
-        
-        # Select bands
-        bands = ['CH4_column_volume_mixing_ratio_dry_air', 'qa_value']
-        if 'cloud_fraction' in self.tropomi_config:
-            bands.append('cloud_fraction')
-        
-        collection = collection.select(bands)
         
         return collection
     
     def _apply_quality_filters(self, collection: ee.ImageCollection) -> ee.ImageCollection:
-        """Apply quality filtering to TROPOMI collection."""
+        """Apply quality filtering using uncertainty as quality measure."""
         
         def quality_filter(image):
-            # Quality mask
-            qa = image.select('qa_value')
-            quality_mask = qa.gte(self.tropomi_config['quality_threshold'])
+            # Use uncertainty as quality measure
+            # Lower uncertainty = higher quality
+            uncertainty = image.select('CH4_column_volume_mixing_ratio_dry_air_uncertainty')
+            ch4 = image.select('CH4_column_volume_mixing_ratio_dry_air')
             
-            # Cloud mask if available
-            if 'cloud_fraction_max' in self.tropomi_config:
-                try:
-                    cloud_fraction = image.select('cloud_fraction')
-                    cloud_mask = cloud_fraction.lte(self.tropomi_config['cloud_fraction_max'])
-                    quality_mask = quality_mask.And(cloud_mask)
-                except:
-                    pass  # Cloud fraction not available in all products
+            # Filter out very high uncertainties (poor quality)
+            max_uncertainty = 50.0  # ppb - adjust based on data characteristics
+            quality_mask = uncertainty.lt(max_uncertainty)
             
-            return image.updateMask(quality_mask)
+            # Filter out unrealistic CH4 values
+            ch4_mask = ch4.gt(1600).And(ch4.lt(2500))  # Typical atmospheric range
+            
+            # Combine masks
+            combined_mask = quality_mask.And(ch4_mask)
+            
+            return image.updateMask(combined_mask)
         
         return collection.map(quality_filter)
     
@@ -188,7 +197,6 @@ class TROPOMICollector:
                 timestamp = pd.to_datetime(timestamp_ms, unit='ms')
                 
                 # Sample image over region
-                # For large regions, we might need to use a different approach
                 bounds = geometry.bounds().getInfo()['coordinates'][0]
                 
                 # Create a regular grid for sampling
@@ -215,53 +223,34 @@ class TROPOMICollector:
             'source': 'TROPOMI/Sentinel-5P',
             'collection': self.tropomi_config['collection'],
             'created': pd.Timestamp.now().isoformat(),
-            'quality_threshold': self.tropomi_config['quality_threshold']
+            'quality_filtering': 'uncertainty_based'
         })
         
         return combined_ds
     
     def _sample_image_regular_grid(self, image: ee.Image, bounds: list, 
-                                  grid_size: int = 100) -> Optional[Dict]:
+                                  grid_size: int = 50) -> Optional[Dict]:
         """Sample image on a regular grid."""
         
         west, south, east, north = bounds[0][0], bounds[0][1], bounds[2][0], bounds[2][1]
         
-        # Create regular grid
-        lon_step = (east - west) / grid_size
-        lat_step = (north - south) / grid_size
-        
         try:
-            # Use reduceRegion for smaller areas or sampleRectangle for larger ones
-            if (east - west) * (north - south) < 100:  # Small region
+            # Use sampleRectangle for smaller regions
+            if (east - west) * (north - south) < 25:  # Small region - about 5x5 degrees
                 sample = image.sampleRectangle(
                     region=ee.Geometry.Rectangle([west, south, east, north]),
                     defaultValue=-9999
                 )
                 return sample.getInfo()
             else:
-                # For larger regions, sample at points
-                points = []
-                for i in range(grid_size):
-                    for j in range(grid_size):
-                        lon = west + i * lon_step
-                        lat = south + j * lat_step
-                        points.append([lon, lat])
-                
-                # Limit number of points for API limits
-                if len(points) > 1000:
-                    points = points[::len(points)//1000]
-                
-                point_collection = ee.FeatureCollection([
-                    ee.Feature(ee.Geometry.Point(point)) for point in points
-                ])
-                
-                sampled = image.sampleRegions(
-                    collection=point_collection,
-                    scale=7000,  # TROPOMI resolution
-                    tileScale=4
+                # For larger regions, use reduceRegion with a mean
+                sample = image.reduceRegion(
+                    reducer=ee.Reducer.mean(),
+                    geometry=ee.Geometry.Rectangle([west, south, east, north]),
+                    scale=7000,  # TROPOMI native resolution ~7km
+                    maxPixels=1e9
                 )
-                
-                return sampled.getInfo()
+                return sample.getInfo()
                 
         except Exception as e:
             logger.error(f"Sampling failed: {e}")
@@ -276,17 +265,17 @@ class TROPOMICollector:
             props = sample_data['properties']
             
             ch4_data = props.get('CH4_column_volume_mixing_ratio_dry_air', [])
-            qa_data = props.get('qa_value', [])
+            uncertainty_data = props.get('CH4_column_volume_mixing_ratio_dry_air_uncertainty', [])
             
             if not ch4_data or not isinstance(ch4_data[0], list):
                 raise ValueError("Invalid sample data format")
             
             ch4_array = np.array(ch4_data, dtype=float)
-            qa_array = np.array(qa_data, dtype=float)
+            uncertainty_array = np.array(uncertainty_data, dtype=float)
             
             # Replace missing values
             ch4_array[ch4_array == -9999] = np.nan
-            qa_array[qa_array == -9999] = np.nan
+            uncertainty_array[uncertainty_array == -9999] = np.nan
             
             # Create coordinates
             height, width = ch4_array.shape
@@ -296,59 +285,24 @@ class TROPOMICollector:
             lats = np.linspace(north, south, height)  # Note: reversed for image coordinates
             
         else:
-            # Point sampling
-            features = sample_data.get('features', [])
+            # Single value from reduceRegion
+            ch4_value = sample_data.get('CH4_column_volume_mixing_ratio_dry_air', np.nan)
+            uncertainty_value = sample_data.get('CH4_column_volume_mixing_ratio_dry_air_uncertainty', np.nan)
             
-            if not features:
-                raise ValueError("No sample features found")
+            # Create single pixel dataset
+            ch4_array = np.array([[ch4_value]])
+            uncertainty_array = np.array([[uncertainty_value]])
             
-            # Extract data from features
-            lats, lons, ch4_values, qa_values = [], [], [], []
-            
-            for feature in features:
-                geom = feature['geometry']['coordinates']
-                props = feature['properties']
-                
-                lons.append(geom[0])
-                lats.append(geom[1])
-                ch4_values.append(props.get('CH4_column_volume_mixing_ratio_dry_air', np.nan))
-                qa_values.append(props.get('qa_value', np.nan))
-            
-            # Convert to regular grid (simple interpolation)
-            # This is a simplified approach - in practice you might want more sophisticated gridding
-            lats = np.array(lats)
-            lons = np.array(lons)
-            ch4_values = np.array(ch4_values)
-            qa_values = np.array(qa_values)
-            
-            # Create regular grid
-            grid_size = int(np.sqrt(len(lats)))
-            if grid_size < 10:
-                grid_size = 10
-            
-            lat_grid = np.linspace(lats.min(), lats.max(), grid_size)
-            lon_grid = np.linspace(lons.min(), lons.max(), grid_size)
-            
-            # Simple nearest neighbor gridding
-            ch4_array = np.full((grid_size, grid_size), np.nan)
-            qa_array = np.full((grid_size, grid_size), np.nan)
-            
-            for i, lat in enumerate(lat_grid):
-                for j, lon in enumerate(lon_grid):
-                    # Find nearest point
-                    distances = (lats - lat)**2 + (lons - lon)**2
-                    nearest_idx = np.argmin(distances)
-                    
-                    ch4_array[i, j] = ch4_values[nearest_idx]
-                    qa_array[i, j] = qa_values[nearest_idx]
-            
-            lats = lat_grid
-            lons = lon_grid
+            # Create single coordinate
+            west, south, east, north = bounds[0][0], bounds[0][1], bounds[2][0], bounds[2][1]
+            lons = np.array([(west + east) / 2])
+            lats = np.array([(north + south) / 2])
         
-        # Create Dataset
+        # Create Dataset with uncertainty-based quality measure
         ds = xr.Dataset({
             'ch4': (['lat', 'lon'], ch4_array),
-            'qa_value': (['lat', 'lon'], qa_array)
+            'ch4_uncertainty': (['lat', 'lon'], uncertainty_array),
+            'qa_value': (['lat', 'lon'], 1.0 / (1.0 + uncertainty_array))  # Convert uncertainty to quality score
         }, coords={
             'lat': lats,
             'lon': lons,
@@ -362,10 +316,16 @@ class TROPOMICollector:
             'source': 'TROPOMI'
         }
         
+        ds['ch4_uncertainty'].attrs = {
+            'long_name': 'CH4 column uncertainty',
+            'units': 'ppb',
+            'description': 'Uncertainty in CH4 measurements'
+        }
+        
         ds['qa_value'].attrs = {
-            'long_name': 'Quality assurance value',
+            'long_name': 'Quality assurance value (derived from uncertainty)',
             'units': 'dimensionless',
-            'valid_range': [0, 1]
+            'description': 'Quality score: 1/(1+uncertainty), higher values = better quality'
         }
         
         return ds.expand_dims('time')
@@ -378,7 +338,7 @@ class TROPOMICollector:
             if region:
                 geometry = self._create_geometry(region)
             else:
-                geometry = self._create_geometry(self.data_config['region_of_interest'])
+                geometry = self.create_region_geometry()
             
             collection = self._get_tropomi_collection(start_date, end_date, geometry)
             
