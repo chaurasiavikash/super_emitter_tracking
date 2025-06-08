@@ -8,7 +8,7 @@ gee:
   service_account_file: null  # Path to service account JSON file
   max_retries: 3
   timeout_seconds: 300
-
+base_path: "/home/vikash/Documents/super-emitter-tracking"
 # Data collection parameters
 data:
   start_date: "2023-01-01"

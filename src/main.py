@@ -12,9 +12,10 @@ import pandas as pd
 import numpy as np
 import warnings
 
-# Add src to path
-sys.path.append(str(Path(__file__).parent))
-
+ 
+# Add project root to path
+sys.path.append(str(Path(__file__).parent.parent))
+# ...existing code...
 # Import modules
 from config.logging_config import setup_logging
 from data.tropomi_collector import TROPOMICollector

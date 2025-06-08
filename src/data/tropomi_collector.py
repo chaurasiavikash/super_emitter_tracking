@@ -31,22 +31,31 @@ class TROPOMICollector:
         self._initialize_gee()
         
     def _initialize_gee(self):
-        """Initialize Google Earth Engine connection."""
-        try:
-            if self.gee_config.get('service_account_file'):
-                credentials = ee.ServiceAccountCredentials(
-                    email=None,
-                    key_file=self.gee_config['service_account_file']
-                )
-                ee.Initialize(credentials)
-            else:
-                ee.Initialize()
             
-            logger.info("Google Earth Engine initialized successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Google Earth Engine: {e}")
-            raise
+            """Initialize Google Earth Engine connection."""
+            try:
+                project_id = self.gee_config.get('project_id')
+                service_account_file = self.gee_config.get('service_account_file')
+                if service_account_file:
+                    credentials = ee.ServiceAccountCredentials(
+                        email=None,
+                        key_file=service_account_file
+                    )
+                    if project_id:
+                        ee.Initialize(credentials, project=project_id)
+                    else:
+                        ee.Initialize(credentials)
+                else:
+                    if project_id:
+                        ee.Initialize(project=project_id)
+                    else:
+                        ee.Initialize()
+                
+                logger.info("Google Earth Engine initialized successfully")
+                
+            except Exception as e:
+                logger.error(f"Failed to initialize Google Earth Engine: {e}")
+                raise    
     
     def collect_data(self, start_date: str, end_date: str, 
                     region: Optional[Dict] = None) -> Optional[xr.Dataset]:

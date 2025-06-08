@@ -1,4 +1,4 @@
-# Core scientific libraries
+# Core scientific computing
 numpy>=1.24.0
 pandas>=2.0.0
 scipy>=1.10.0
@@ -7,62 +7,81 @@ xarray>=2023.7.0
 netCDF4>=1.6.0
 h5py>=3.8.0
 
-# Geospatial
+# Geospatial libraries
 geopandas>=0.13.0
 shapely>=2.0.0
 rasterio>=1.3.0
 pyproj>=3.4.0
-cartopy>=0.21.0
 folium>=0.14.0
+cartopy>=0.21.0
 
-# Earth Engine and satellite data
-earthengine-api>=0.1.360
+# Google Earth Engine
+earthengine-api>=0.1.368
 google-auth>=2.17.0
 google-auth-oauthlib>=1.0.0
-
-# Time series analysis
-statsmodels>=0.14.0
-prophet>=1.1.0
-seasonal>=0.3.1
-changepoint>=0.1.0
+google-auth-httplib2>=0.1.0
 
 # Visualization
 matplotlib>=3.7.0
 seaborn>=0.12.0
 plotly>=5.15.0
-streamlit>=1.25.0
 bokeh>=3.2.0
 
-# Dashboard and web
+# Streamlit dashboard
+streamlit>=1.28.0
 streamlit-folium>=0.13.0
 streamlit-plotly-events>=0.0.6
-dash>=2.11.0
-flask>=2.3.0
-fastapi>=0.100.0
 
-# Machine learning
+# Time series analysis
+statsmodels>=0.14.0
+
+# Machine learning (optional advanced features)
 lightgbm>=4.0.0
 catboost>=1.2.0
-optuna>=3.3.0
+
+# Web and API
+requests>=2.31.0
+fastapi>=0.100.0
+uvicorn>=0.23.0
 
 # Utilities
 pyyaml>=6.0
-requests>=2.31.0
 tqdm>=4.65.0
 click>=8.1.0
 python-dotenv>=1.0.0
-schedule>=1.2.0
+pathlib2>=2.3.7
 
-# Testing and development
+# Logging and monitoring
+loguru>=0.7.0
+
+# Image processing (for visualization)
+Pillow>=10.0.0
+
+# Email notifications
+smtplib2>=0.2.0
+
+# Development and testing
 pytest>=7.4.0
 pytest-cov>=4.1.0
 black>=23.7.0
 flake8>=6.0.0
-mypy>=1.5.0
 
-# Atmospheric science specific
-metpy>=1.5.0
-atmoschem>=0.1.0
+# Jupyter notebooks
+jupyter>=1.0.0
+ipykernel>=6.25.0
+ipywidgets>=8.1.0
 
-# Email alerts
-smtplib2>=0.2.0
+# Performance
+dask>=2023.8.0
+numba>=0.57.0
+
+# File I/O
+openpyxl>=3.1.0
+xlsxwriter>=3.1.0
+
+# Optional: Docker support
+# docker>=6.1.0
+
+# Optional: Cloud storage
+# boto3>=1.28.0  # For AWS S3
+# google-cloud-storage>=2.10.0  # For Google Cloud Storage

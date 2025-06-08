@@ -5,8 +5,10 @@ import logging
 import smtplib
 import requests
 import json
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+
+from email.mime.multipart import MIMEMultipart
+
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import pandas as pd
