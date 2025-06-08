@@ -1,4 +1,224 @@
-# Key metrics
+# ============================================================================
+# FILE: src/visualization/dashboard.py
+# ============================================================================
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import folium
+from streamlit_folium import st_folium
+import altair as alt
+from datetime import datetime, timedelta
+import logging
+from typing import Dict, List, Optional
+import json
+
+logger = logging.getLogger(__name__)
+
+class SuperEmitterDashboard:
+    """
+    Interactive Streamlit dashboard for super-emitter monitoring and analysis.
+    
+    Features:
+    - Real-time monitoring of super-emitters
+    - Interactive maps with temporal controls
+    - Time series analysis and trends
+    - Alert management interface
+    - Data export capabilities
+    - Performance metrics and validation
+    """
+    
+    def __init__(self, config: Dict, tracker=None):
+        self.config = config
+        self.tracker = tracker
+        
+        # Dashboard state
+        if 'dashboard_data' not in st.session_state:
+            st.session_state.dashboard_data = {}
+        if 'selected_emitters' not in st.session_state:
+            st.session_state.selected_emitters = []
+        if 'date_range' not in st.session_state:
+            st.session_state.date_range = (
+                datetime.now() - timedelta(days=30),
+                datetime.now()
+            )
+    
+    def run_dashboard(self, port: int = 8501):
+        """Run the Streamlit dashboard."""
+        
+        st.set_page_config(
+            page_title="Super-Emitter Tracking System",
+            page_icon="🛰️",
+            layout="wide",
+            initial_sidebar_state="expanded"
+        )
+        
+        # Custom CSS for better styling
+        self._inject_custom_css()
+        
+        # Main dashboard layout
+        self._render_dashboard()
+    
+    def _inject_custom_css(self):
+        """Inject custom CSS for dashboard styling."""
+        
+        st.markdown("""
+        <style>
+        .main > div {
+            padding-top: 2rem;
+        }
+        .stMetric {
+            background-color: #f0f2f6;
+            border: 1px solid #e1e5e9;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        .alert-high {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+        .alert-medium {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+        .alert-low {
+            background-color: #e8f5e8;
+            border-left: 4px solid #4caf50;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+        .sidebar .sidebar-content {
+            background-color: #f8f9fa;
+        }
+        .stSelectbox > div > div > select {
+            background-color: white;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    
+    def _render_dashboard(self):
+        """Render the main dashboard interface."""
+        
+        # Header
+        st.title("🛰️ Super-Emitter Tracking System")
+        st.markdown("**Real-time monitoring and analysis of methane super-emitters using TROPOMI data**")
+        
+        # Sidebar controls
+        self._render_sidebar()
+        
+        # Main content tabs
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "🗺️ Live Monitoring", 
+            "📈 Time Series Analysis", 
+            "🚨 Alerts & Notifications",
+            "📊 Performance Analytics",
+            "⚙️ Data Export"
+        ])
+        
+        with tab1:
+            self._render_live_monitoring_tab()
+        
+        with tab2:
+            self._render_time_series_tab()
+        
+        with tab3:
+            self._render_alerts_tab()
+        
+        with tab4:
+            self._render_analytics_tab()
+        
+        with tab5:
+            self._render_export_tab()
+    
+    def _render_sidebar(self):
+        """Render sidebar controls."""
+        
+        st.sidebar.header("🎛️ Control Panel")
+        
+        # Data refresh
+        if st.sidebar.button("🔄 Refresh Data", type="primary"):
+            self._refresh_data()
+            st.experimental_rerun()
+        
+        # Date range selection
+        st.sidebar.subheader("📅 Time Period")
+        
+        date_options = st.sidebar.selectbox(
+            "Quick Select",
+            ["Last 24 hours", "Last 7 days", "Last 30 days", "Custom range"]
+        )
+        
+        if date_options == "Custom range":
+            start_date = st.sidebar.date_input("Start Date", 
+                                             value=datetime.now() - timedelta(days=30))
+            end_date = st.sidebar.date_input("End Date", value=datetime.now())
+            st.session_state.date_range = (start_date, end_date)
+        else:
+            days_map = {"Last 24 hours": 1, "Last 7 days": 7, "Last 30 days": 30}
+            days = days_map[date_options]
+            st.session_state.date_range = (
+                datetime.now() - timedelta(days=days),
+                datetime.now()
+            )
+        
+        # Geographic filters
+        st.sidebar.subheader("🌍 Geographic Filters")
+        
+        region_filter = st.sidebar.selectbox(
+            "Region",
+            ["Global", "North America", "Europe", "Asia", "Custom Bounds"]
+        )
+        
+        if region_filter == "Custom Bounds":
+            col1, col2 = st.sidebar.columns(2)
+            with col1:
+                min_lat = st.number_input("Min Lat", value=30.0, format="%.2f")
+                min_lon = st.number_input("Min Lon", value=-120.0, format="%.2f")
+            with col2:
+                max_lat = st.number_input("Max Lat", value=50.0, format="%.2f")
+                max_lon = st.number_input("Max Lon", value=-70.0, format="%.2f")
+            
+            st.session_state.geographic_bounds = [min_lat, min_lon, max_lat, max_lon]
+        
+        # Detection thresholds
+        st.sidebar.subheader("🎯 Detection Settings")
+        
+        emission_threshold = st.sidebar.slider(
+            "Emission Threshold (kg/hr)",
+            min_value=100, max_value=5000, value=1000, step=100
+        )
+        
+        confidence_threshold = st.sidebar.slider(
+            "Confidence Threshold",
+            min_value=0.1, max_value=1.0, value=0.7, step=0.05
+        )
+        
+        # Data loading status
+        st.sidebar.subheader("📊 Data Status")
+        
+        # Mock data status - in real implementation, get from tracker
+        if self.tracker:
+            summary = self.tracker.get_tracking_summary()
+            st.sidebar.metric("Active Tracks", summary.get('active_tracks', 0))
+            st.sidebar.metric("Recent Detections", summary.get('recent_activity_7days', 0))
+            st.sidebar.metric("Total Alerts", summary.get('total_alerts', 0))
+        else:
+            st.sidebar.info("📡 Loading tracking data...")
+    
+    def _render_live_monitoring_tab(self):
+        """Render the live monitoring tab with interactive map."""
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        
+        # Key metrics
         with col1:
             st.metric(
                 label="🔥 Active Super-Emitters",
@@ -996,10 +1216,191 @@ class SuperEmitterDashboard:
     
     def _render_live_monitoring_tab(self):
         """Render the live monitoring tab with interactive map."""
-        
+
         col1, col2, col3, col4 = st.columns(4)
-        
+
         # Key metrics
         with col1:
             st.metric(
                 label="🔥 Active Super-Emitters",
+                value="42",
+                delta="3 new today"
+            )
+
+        with col2:
+            st.metric(
+                label="💨 Total Emission Rate",
+                value="15,847 kg/hr",
+                delta="+1,250 kg/hr"
+            )
+
+        with col3:
+            st.metric(
+                label="🏭 Facility Associations",
+                value="38/42",
+                delta="90.5%"
+            )
+
+        with col4:
+            st.metric(
+                label="🚨 Active Alerts",
+                value="7",
+                delta="2 high priority"
+            )
+
+        st.markdown("---")
+
+        # Interactive map section
+        col_map, col_controls = st.columns([3, 1])
+
+        with col_map:
+            st.subheader("🗺️ Global Super-Emitter Map")
+
+            # Create interactive map
+            map_data = self._get_map_data()
+            interactive_map = self._create_interactive_map(map_data)
+
+            # Display map
+            map_result = st_folium(interactive_map, width=800, height=600)
+
+            # Handle map interactions
+            if map_result['last_object_clicked_tooltip']:
+                selected_emitter = map_result['last_object_clicked_tooltip']
+                self._display_emitter_details(selected_emitter)
+
+        with col_controls:
+            st.subheader("🎛️ Map Controls")
+
+            # Layer controls
+            show_emissions = st.checkbox("Show Emission Rates", value=True)
+            show_trends = st.checkbox("Show Trend Arrows", value=False)
+            show_facilities = st.checkbox("Show Facilities", value=True)
+            show_alerts = st.checkbox("Highlight Alerts", value=True)
+
+            # Time animation controls
+            st.markdown("**⏱️ Time Animation**")
+            play_animation = st.button("▶️ Play")
+
+            if play_animation:
+                self._animate_time_series()
+
+            # Map style
+            map_style = st.selectbox(
+                "Map Style",
+                ["OpenStreetMap", "Satellite", "Terrain", "Dark"]
+            )
+
+            # Data filters
+            st.markdown("**🔍 Data Filters**")
+
+            min_emission = st.slider(
+                "Min Emission (kg/hr)",
+                0, 5000, 1000
+            )
+
+            facility_types = st.multiselect(
+                "Facility Types",
+                ["Oil & Gas", "Landfill", "Agriculture", "Unknown"],
+                default=["Oil & Gas", "Landfill"]
+            )
+
+        # Recent detections table
+        st.subheader("📋 Recent Detections")
+
+        recent_data = self._get_recent_detections()
+
+        if not recent_data.empty:
+            # Make table interactive
+            selected_rows = st.dataframe(
+                recent_data,
+                column_config={
+                    "emitter_id": "Emitter ID",
+                    "timestamp": st.column_config.DatetimeColumn("Detection Time"),
+                    "emission_rate": st.column_config.NumberColumn(
+                        "Emission Rate (kg/hr)",
+                        format="%.1f"
+                    ),
+                    "facility_name": "Facility",
+                    "alert_status": st.column_config.SelectboxColumn(
+                        "Alert Status",
+                        options=["None", "Low", "Medium", "High"]
+                    )
+                },
+                hide_index=True,
+                use_container_width=True,
+                selection_mode="multi-row"
+            )
+        else:
+            st.info("No recent detections available. Check data connection.")
+
+    def _display_emitter_details(self, selected_emitter):
+        """Display details for selected emitter."""
+        st.subheader("📍 Emitter Details")
+
+        with st.expander("Detailed Information", expanded=True):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.write(f"**Emitter ID:** {selected_emitter.get('emitter_id', 'Unknown')}")
+                st.write(f"**Location:** {selected_emitter.get('lat', 0):.3f}°N, {selected_emitter.get('lon', 0):.3f}°W")
+                st.write(f"**Emission Rate:** {selected_emitter.get('emission_rate', 0):.1f} kg/hr")
+
+            with col2:
+                st.write(f"**Facility Type:** {selected_emitter.get('facility_type', 'Unknown')}")
+                st.write(f"**Alert Status:** {selected_emitter.get('alert_status', 'None')}")
+                st.write(f"**Last Detection:** {selected_emitter.get('last_detection', 'Unknown')}")
+
+    def _animate_time_series(self):
+        """Animate time series data on map."""
+        st.info("Time animation feature coming soon!")
+
+    def _get_mime_type(self, format_type: str) -> str:
+        """Get MIME type for file format."""
+        mime_types = {
+            'csv': 'text/csv',
+            'json': 'application/json',
+            'geojson': 'application/geo+json',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'pdf': 'application/pdf'
+        }
+        return mime_types.get(format_type.lower(), 'application/octet-stream')
+
+    def _prepare_export_data(self, export_type: str, export_format: str, date_range) -> Optional[bytes]:
+        """Prepare data for export."""
+        # Mock implementation - replace with actual data preparation
+        if export_type == "Super-Emitter Detections":
+            data = self._get_recent_detections()
+            if export_format.lower() == 'csv':
+                return data.to_csv(index=False).encode('utf-8')
+            elif export_format.lower() == 'json':
+                return data.to_json(orient='records', indent=2).encode('utf-8')
+
+        return None
+
+    def _generate_report(self, report_type: str, report_period: str, 
+                        include_plots: bool, include_raw_data: bool) -> bytes:
+        """Generate PDF report."""
+        # Mock implementation - would use reportlab or similar for real PDF generation
+        report_content = f"""
+        {report_type}
+        Period: {report_period}
+        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+        Summary:
+        - Plots included: {include_plots}
+        - Raw data included: {include_raw_data}
+
+        This is a mock report. In production, this would generate a proper PDF.
+        """
+        return report_content.encode('utf-8')
+
+    def _get_data_summary(self) -> Dict:
+        """Get data summary statistics."""
+        return {
+            'total_records': 1547,
+            'unique_emitters': 42,
+            'date_range': 30,
+            'completeness': 0.923,
+            'file_size_mb': 15.7,
+            'last_updated': '2 hours ago'
+        }
