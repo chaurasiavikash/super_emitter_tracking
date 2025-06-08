@@ -1,0 +1,253 @@
+# ============================================================================
+# Super-Emitter Tracking and Temporal Analysis System Configuration
+# ============================================================================
+
+# Google Earth Engine settings
+gee:
+  project_id: "sodium-lore-456715-i3"
+  service_account_file: null  # Path to service account JSON file
+  max_retries: 3
+  timeout_seconds: 300
+
+# Data collection parameters
+data:
+  start_date: "2023-01-01"
+  end_date: "2023-12-31"
+  region_of_interest:
+    type: "global"  # global, bbox, polygon, facility_list
+    coordinates: null  # [west, south, east, north] for bbox
+    buffer_km: 50  # Buffer around facilities for analysis
+  
+  # Data sources
+  tropomi:
+    collection: "COPERNICUS/S5P/OFFL/L3_CH4"
+    quality_threshold: 0.5
+    cloud_fraction_max: 0.3
+    qa_flags: ["GOOD"]
+    
+  meteorology:
+    wind_data: "ERA5"  # ERA5, GDAS, HRRR
+    temperature_data: "ERA5"
+    pressure_data: "ERA5"
+
+# Super-emitter detection parameters
+super_emitters:
+  # Detection thresholds
+  detection:
+    enhancement_threshold: 50.0  # ppb above background
+    emission_rate_threshold: 1000.0  # kg/hr minimum to classify as super-emitter
+    spatial_extent_min: 4  # minimum pixels
+    persistence_days: 3  # must appear in X out of Y days
+    confidence_threshold: 0.7  # statistical confidence
+    
+  # Background calculation
+  background:
+    method: "rolling_percentile"  # rolling_percentile, seasonal, local_median
+    percentile: 20  # for percentile methods
+    window_days: 30  # rolling window size
+    spatial_radius_km: 100  # radius for local background
+    
+  # Clustering parameters
+  clustering:
+    algorithm: "DBSCAN"  # DBSCAN, connected_components
+    eps_km: 5.0  # maximum distance between points in same cluster
+    min_samples: 3  # minimum points to form cluster
+    
+  # Known super-emitter database
+  database:
+    update_frequency: "weekly"  # daily, weekly, monthly
+    validation_sources: ["GHGSAT", "AVIRIS", "ground_stations"]
+    facility_buffer_km: 2.0  # buffer around known facilities
+
+# Temporal tracking parameters
+tracking:
+  # Time series analysis
+  time_series:
+    min_observations: 10  # minimum data points for trend analysis
+    interpolation_method: "linear"  # linear, cubic, seasonal
+    outlier_detection: "iqr"  # iqr, zscore, isolation_forest
+    outlier_threshold: 3.0
+    
+  # Trend detection
+  trends:
+    algorithms: ["mann_kendall", "sen_slope", "prophet"]
+    significance_level: 0.05
+    changepoint_detection: true
+    seasonal_decomposition: true
+    
+  # Persistence filtering
+  persistence:
+    min_detections: 5  # minimum detections to track
+    max_gap_days: 14  # maximum gap between detections
+    decay_factor: 0.9  # weight decay for older observations
+
+# Statistical analysis
+analysis:
+  # Uncertainty quantification
+  uncertainty:
+    monte_carlo_samples: 1000
+    confidence_intervals: [0.68, 0.95]  # 1-sigma, 2-sigma
+    error_sources: ["retrieval", "atmospheric", "background"]
+    
+  # Seasonal analysis
+  seasonal:
+    components: ["trend", "seasonal", "residual"]
+    period_days: 365.25
+    fourier_terms: 3
+    
+  # Change detection
+  change_detection:
+    algorithms: ["cusum", "page_hinkley", "bayesian"]
+    sensitivity: "medium"  # low, medium, high
+    min_change_magnitude: 20.0  # ppb
+
+# Alert system
+alerts:
+  # Alert conditions
+  conditions:
+    new_super_emitter: true
+    emission_increase: true
+    facility_shutdown: true
+    data_quality_issues: true
+    
+  # Thresholds
+  thresholds:
+    new_emitter_confidence: 0.8
+    emission_increase_percent: 50.0
+    emission_decrease_percent: 80.0  # for shutdown detection
+    data_gap_days: 7
+    
+  # Notification settings
+  notifications:
+    email:
+      enabled: true
+      recipients: ["analyst@example.com"]
+      smtp_server: "smtp.gmail.com"
+      smtp_port: 587
+    
+    webhook:
+      enabled: false
+      url: "https://your-webhook-url.com"
+      
+    dashboard:
+      enabled: true
+      refresh_minutes: 15
+
+# Validation parameters
+validation:
+  # Cross-validation
+  cross_validation:
+    method: "temporal"  # temporal, spatial, random
+    test_fraction: 0.2
+    cv_folds: 5
+    
+  # Ground truth comparison
+  ground_truth:
+    sources: ["GHGSAT", "aircraft", "ground_stations"]
+    matching_radius_km: 10.0
+    temporal_tolerance_hours: 6
+    
+  # Performance metrics
+  metrics:
+    detection: ["precision", "recall", "f1_score"]
+    regression: ["r2", "rmse", "mae", "bias"]
+    temporal: ["trend_accuracy", "changepoint_detection"]
+
+# Visualization settings
+visualization:
+  # Maps
+  maps:
+    basemap: "CartoDB.Positron"
+    colormap: "plasma"
+    marker_size_range: [5, 20]
+    opacity: 0.7
+    
+  # Time series plots
+  time_series:
+    style: "seaborn-v0_8"
+    figure_size: [12, 8]
+    dpi: 300
+    colors: ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+    
+  # Dashboard
+  dashboard:
+    auto_refresh: true
+    refresh_seconds: 300
+    show_confidence_intervals: true
+    show_uncertainty_bands: true
+
+# Processing settings
+processing:
+  # Parallel processing
+  parallel:
+    n_jobs: -1  # -1 for all cores
+    chunk_size: 100  # for batch processing
+    memory_limit_gb: 8
+    
+  # Caching
+  cache:
+    enabled: true
+    cache_dir: "./cache"
+    max_size_gb: 10
+    ttl_hours: 24
+    
+  # Output formats
+  output:
+    formats: ["csv", "geojson", "netcdf", "parquet"]
+    compression: "gzip"
+    precision: 3  # decimal places
+
+# Quality control
+quality_control:
+  # Data quality flags
+  flags:
+    invalid_retrieval: 0
+    cloud_contaminated: 1
+    low_quality: 2
+    valid: 3
+    high_quality: 4
+    
+  # Filters
+  filters:
+    min_valid_pixels: 10
+    max_cloud_fraction: 0.3
+    valid_range_ppb: [1600, 2500]  # typical atmospheric range
+    
+  # Outlier detection
+  outliers:
+    global_threshold_sigma: 5.0
+    local_threshold_sigma: 3.0
+    temporal_threshold_sigma: 4.0
+
+# Logging and monitoring
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/super_emitter_tracker.log"
+  max_size_mb: 100
+  backup_count: 5
+  
+  # Performance monitoring
+  monitoring:
+    enabled: true
+    metrics: ["processing_time", "memory_usage", "detection_rate"]
+    log_interval_minutes: 60
+
+# Development and testing
+development:
+  # Test data
+  test:
+    use_synthetic_data: false
+    synthetic_emitters: 10
+    noise_level: 0.1
+    
+  # Debug settings
+  debug:
+    save_intermediate_results: false
+    plot_debug_figures: false
+    verbose_logging: false
+    
+  # Profiling
+  profiling:
+    enabled: false
+    output_dir: "profiling"

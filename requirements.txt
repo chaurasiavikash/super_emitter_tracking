@@ -1,0 +1,68 @@
+# Core scientific libraries
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+xarray>=2023.7.0
+netCDF4>=1.6.0
+h5py>=3.8.0
+
+# Geospatial
+geopandas>=0.13.0
+shapely>=2.0.0
+rasterio>=1.3.0
+pyproj>=3.4.0
+cartopy>=0.21.0
+folium>=0.14.0
+
+# Earth Engine and satellite data
+earthengine-api>=0.1.360
+google-auth>=2.17.0
+google-auth-oauthlib>=1.0.0
+
+# Time series analysis
+statsmodels>=0.14.0
+prophet>=1.1.0
+seasonal>=0.3.1
+changepoint>=0.1.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+streamlit>=1.25.0
+bokeh>=3.2.0
+
+# Dashboard and web
+streamlit-folium>=0.13.0
+streamlit-plotly-events>=0.0.6
+dash>=2.11.0
+flask>=2.3.0
+fastapi>=0.100.0
+
+# Machine learning
+lightgbm>=4.0.0
+catboost>=1.2.0
+optuna>=3.3.0
+
+# Utilities
+pyyaml>=6.0
+requests>=2.31.0
+tqdm>=4.65.0
+click>=8.1.0
+python-dotenv>=1.0.0
+schedule>=1.2.0
+
+# Testing and development
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.7.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Atmospheric science specific
+metpy>=1.5.0
+atmoschem>=0.1.0
+
+# Email alerts
+smtplib2>=0.2.0
