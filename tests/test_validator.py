@@ -8,12 +8,12 @@ import sys
 from pathlib import Path
 
 # Add src to path (from tests folder, go up one level to project root, then into src)
-sys.path.append(str(Path(__file__).parent.parent / "src"))
-
+sys.path.append(str(Path(__file__).parent.parent / "src/detection"))
+sys.path.append(str(Path(__file__).parent.parent / "src/data"))
 import numpy as np
 import matplotlib.pyplot as plt
-from data.tropomi_collector import TROPOMICollector
-from detection.super_emitter_detector import SuperEmitterDetector
+from  tropomi_collector import TROPOMICollector
+from  super_emitter_detector import SuperEmitterDetector
 
 def test_real_data_pipeline():
     """Test the detection pipeline with real TROPOMI data."""
