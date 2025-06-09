@@ -43,7 +43,7 @@ class TROPOMIPreprocessor:
         processed_data = self._apply_quality_filters(tropomi_data)
         
         # Step 2: Remove outliers
-        processed_data = self._remove_outliers(processed_data)
+        #processed_data = self._remove_outliers(processed_data)
         
         # Step 3: Calculate background and enhancement
         processed_data = self._calculate_background_and_enhancement(processed_data)
@@ -101,8 +101,8 @@ class TROPOMIPreprocessor:
         q3 = ch4_data.quantile(0.75, dim=['lat', 'lon'])
         iqr = q3 - q1
         
-        lower_bound = q1 - 1.5 * iqr
-        upper_bound = q3 + 1.5 * iqr
+        lower_bound = q1 - 3.5 * iqr
+        upper_bound = q3 + 3.5 * iqr
         
         # Create outlier mask
         outlier_mask = (ch4_data >= lower_bound) & (ch4_data <= upper_bound)

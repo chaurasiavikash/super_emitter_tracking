@@ -41,6 +41,7 @@ class TestSuperEmitterDetector:
                     'percentile': 20,
                     'window_days': 30,
                     'spatial_radius_km': 100
+                    
                 },
                 'clustering': {
                     'algorithm': 'DBSCAN',

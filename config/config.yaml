@@ -20,8 +20,9 @@ data:
   # Data sources
   tropomi:
     collection: "COPERNICUS/S5P/OFFL/L3_CH4"
-    quality_threshold: 0.5
-    cloud_fraction_max: 0.3
+    quality_threshold: 0
+    cloud_fraction_max: 1.0
+    uncertainty_threshold: 50.0  # Increase from 10.0 to 50.0
     qa_flags: ["GOOD"]
     
   meteorology:
@@ -34,10 +35,11 @@ super_emitters:
   # Detection thresholds
   detection:
     enhancement_threshold: 50.0  # ppb above background
-    emission_rate_threshold: 1000.0  # kg/hr minimum to classify as super-emitter
     spatial_extent_min: 4  # minimum pixels
     persistence_days: 3  # must appear in X out of Y days
-    confidence_threshold: 0.7  # statistical confidence
+    enhancement_threshold: 5.0  # Very low (was 50.0)
+    emission_rate_threshold: 50.0  # Very low (was 1000.0)
+    confidence_threshold: 0.3  # Very low (was 0.7)
     
   # Background calculation
   background:

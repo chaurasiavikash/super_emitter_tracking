@@ -10,6 +10,7 @@ import pandas as pd
 import geopandas as gpd
 import xarray as xr
 from shapely.geometry import Point
+from datetime import datetime 
 
 logger = logging.getLogger(__name__)
 
@@ -105,23 +106,25 @@ class FileManager:
             logger.error(f"Failed to save GeoJSON to {file_path}: {e}")
             return False
     
+    
+
     def save_json(self, data: Dict[str, Any], file_path: Union[str, Path]) -> bool:
         """Save dictionary as JSON file."""
-        
+
         file_path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         try:
             with open(file_path, 'w') as f:
                 json.dump(data, f, indent=2, default=self._json_serializer)
-            
+
             logger.info(f"JSON saved to {file_path}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to save JSON to {file_path}: {e}")
             return False
-    
+
     def load_json(self, file_path: Union[str, Path]) -> Optional[Dict]:
         """Load JSON file as dictionary."""
         
@@ -476,7 +479,7 @@ class FileManager:
     def _json_serializer(self, obj):
         """JSON serializer for non-standard types."""
         
-        if isinstance(obj, (pd.Timestamp, pd.DatetimeIndex)):
+        if isinstance(obj, (pd.Timestamp, datetime)):
             return obj.isoformat()
         elif isinstance(obj, pd.DataFrame):
             return obj.to_dict('records')

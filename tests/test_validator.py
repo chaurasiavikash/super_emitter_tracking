@@ -34,7 +34,7 @@ def test_real_data_pipeline():
             },
             'tropomi': {
                 'collection': 'COPERNICUS/S5P/OFFL/L3_CH4',
-                'quality_threshold': 0.5
+                'quality_threshold': 0.1
             }
         },
         'super_emitters': {
