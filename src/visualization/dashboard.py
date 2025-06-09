@@ -14,7 +14,8 @@ from datetime import datetime, timedelta
 import logging
 from typing import Dict, List, Optional
 import json
-
+import os
+import glob
 logger = logging.getLogger(__name__)
 
 class SuperEmitterDashboard:
@@ -145,7 +146,7 @@ class SuperEmitterDashboard:
         # Data refresh
         if st.sidebar.button("🔄 Refresh Data", type="primary"):
             self._refresh_data()
-            st.experimental_rerun()
+            st.rerun()
         
         # Date range selection
         st.sidebar.subheader("📅 Time Period")
@@ -355,29 +356,36 @@ class SuperEmitterDashboard:
             )
         
         if selected_emitters:
-            # Main time series plot
+            # --- LOAD THE REAL ANALYSIS FILE ---
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            output_base_dir = os.path.join(project_root, "data", "outputs")
+            output_dirs = glob.glob(os.path.join(output_base_dir, "run_*"))
+            analysis_data = {}
+            if output_dirs:
+                latest_run = max(output_dirs, key=os.path.getctime)
+                analysis_file = os.path.join(latest_run, "analysis", "time_series_analysis.json")
+                if os.path.exists(analysis_file):
+                    with open(analysis_file, 'r') as f:
+                        analysis_data = json.load(f)
+            # ------------------------------------
+            
+            # ... (the part that creates the main time series plot remains the same for now) ...
             time_series_data = self._get_time_series_data(selected_emitters)
             
             if not time_series_data.empty:
-                fig = self._create_time_series_plot(time_series_data, analysis_type)
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Trend analysis
+                # ... (the main plot code) ...
+        
+                # --- USE THE NEW FUNCTIONS WITH REAL DATA ---
                 col1, col2 = st.columns(2)
-                
                 with col1:
                     st.subheader("📊 Trend Statistics")
-                    trend_stats = self._calculate_trend_statistics(time_series_data)
+                    trend_stats = self._calculate_trend_statistics(analysis_data)
                     st.dataframe(trend_stats, use_container_width=True)
-                
                 with col2:
                     st.subheader("🔍 Change Detection")
-                    change_points = self._detect_change_points(time_series_data)
-                    
-                    if not change_points.empty:
-                        st.dataframe(change_points, use_container_width=True)
-                    else:
-                        st.info("No significant change points detected")
+                    change_points = self._detect_change_points(analysis_data)
+                    st.dataframe(change_points, use_container_width=True)
+                # -----------------------------------------
                 
                 # Seasonal decomposition
                 st.subheader("🌊 Seasonal Analysis")
@@ -471,7 +479,7 @@ class SuperEmitterDashboard:
             
             with col3:
                 if st.button("🔄 Refresh Alerts"):
-                    st.experimental_rerun()
+                    st.rerun()
         else:
             st.info("No alerts match current filters")
         
@@ -499,15 +507,14 @@ class SuperEmitterDashboard:
                     "Alert Threshold",
                     min_value=0.1, max_value=1.0, value=0.7
                 )
-    
+     
     def _render_analytics_tab(self):
-        """Render performance analytics tab."""
-        
+        """Render performance analytics tab robustly, checking for files first."""
+
         st.subheader("📊 System Performance Analytics")
-        
-        # Performance metrics
+
+        # --- Performance Metrics (these are mock/static for now) ---
         col1, col2, col3, col4 = st.columns(4)
-        
         with col1:
             st.metric("Detection Rate", "95.3%", delta="2.1%")
         with col2:
@@ -516,45 +523,58 @@ class SuperEmitterDashboard:
             st.metric("Processing Time", "2.3 min", delta="-0.5 min")
         with col4:
             st.metric("Data Coverage", "92.1%", delta="1.8%")
-        
-        # Performance over time
+
+        # --- Performance Over Time Plots (mock for now) ---
         col1, col2 = st.columns(2)
-        
         with col1:
             st.subheader("🎯 Detection Performance")
             performance_fig = self._create_performance_plot()
             st.plotly_chart(performance_fig, use_container_width=True)
-        
         with col2:
             st.subheader("⏱️ Processing Statistics")
             processing_fig = self._create_processing_stats_plot()
             st.plotly_chart(processing_fig, use_container_width=True)
-        
-        # Validation results
+
+        # --- Validation Results Section (This is the critical change) ---
         st.subheader("✅ Validation Results")
-        
-        validation_data = self._get_validation_data()
-        
-        if not validation_data.empty:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Confusion matrix
-                confusion_fig = self._create_confusion_matrix()
-                st.plotly_chart(confusion_fig, use_container_width=True)
-            
-            with col2:
-                # ROC curve
-                roc_fig = self._create_roc_curve()
-                st.plotly_chart(roc_fig, use_container_width=True)
+
+        # Find the latest run directory to check for validation files
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        output_base_dir = os.path.join(project_root, "data", "outputs")
+        output_dirs = glob.glob(os.path.join(output_base_dir, "run_*"))
+
+        if not output_dirs:
+            st.warning("No pipeline runs found to load validation data from.")
+            return
+
+        latest_run = max(output_dirs, key=os.path.getctime)
+
+        # Define paths to optional validation files
+        validation_results_file = os.path.join(latest_run, "validation", "validation_results.csv")
+        error_analysis_file = os.path.join(latest_run, "validation", "error_analysis.csv")
+
+        # Check for the existence of the main validation file
+        if os.path.exists(validation_results_file):
+            validation_data = self._get_validation_data(validation_results_file) # Pass the path
+            if not validation_data.empty:
+                col1, col2 = st.columns(2)
+                with col1:
+                    confusion_fig = self._create_confusion_matrix(validation_data) # Pass the data
+                    st.plotly_chart(confusion_fig, use_container_width=True)
+                with col2:
+                    roc_fig = self._create_roc_curve(validation_data) # Pass the data
+                    st.plotly_chart(roc_fig, use_container_width=True)
         else:
-            st.info("No validation data available")
-        
-        # Error analysis
+            st.info("Validation results not found. To see the Confusion Matrix and ROC Curve, run the full validation pipeline to generate a `validation_results.csv` file.")
+
+        # Check for the existence of the error analysis file
         with st.expander("🔍 Error Analysis"):
-            error_analysis = self._get_error_analysis()
-            st.dataframe(error_analysis, use_container_width=True)
-    
+            if os.path.exists(error_analysis_file):
+                error_analysis_data = self._get_error_analysis(error_analysis_file) # Pass the path
+                st.dataframe(error_analysis_data, use_container_width=True)
+            else:
+                st.info("Error analysis file not found. To see this table, run the full validation pipeline to generate an `error_analysis.csv` file.")
+
     def _render_export_tab(self):
         """Render data export tab."""
         
@@ -657,35 +677,48 @@ class SuperEmitterDashboard:
                 'last_refresh': datetime.now(),
                 'mock_data': True
             }
+        return None
     def _load_pipeline_data(self):
         """Load the most recent pipeline results."""
-        import glob
         import os
-        
-        # Find the most recent run directory - FIXED PATH
-        output_dirs = glob.glob("./data/outputs/run_*")  # Changed from ../../data/outputs/run_*
-        if not output_dirs:
-            st.warning("No pipeline runs found in ./data/outputs/")
-            return None
-        
-        latest_run = max(output_dirs, key=os.path.getctime)
-        st.info(f"Loading data from: {latest_run}")  # Add this to see what it finds
-        
+        import glob
+        import pandas as pd
+        import streamlit as st
+        import logging # It's better to log errors to the console
+
         try:
-            # Load super-emitters data
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            output_base_dir = os.path.join(project_root, "data", "outputs")
+
+            if not os.path.exists(output_base_dir):
+                logging.error(f"The base output directory does not exist: {output_base_dir}")
+                return None
+
+            output_dirs = glob.glob(os.path.join(output_base_dir, "run_*"))
+
+            if not output_dirs:
+                logging.warning(f"No pipeline run directories found in '{output_base_dir}'.")
+                return None
+
+            latest_run = max(output_dirs, key=os.path.getctime)
             emitters_file = os.path.join(latest_run, "detections", "super_emitters.csv")
-            st.info(f"Looking for file: {emitters_file}")  # Add this debug info
-            
+
             if os.path.exists(emitters_file):
                 data = pd.read_csv(emitters_file)
-                st.success(f"Loaded {len(data)} super-emitters!")  # Add success message
+                # Convert timestamp columns if they exist
+                if 'timestamp' in data.columns:
+                    data['timestamp'] = pd.to_datetime(data['timestamp'])
+                if 'first_detected' in data.columns:
+                    data['first_detected'] = pd.to_datetime(data['first_detected'])
                 return data
             else:
-                st.error(f"File not found: {emitters_file}")
+                logging.error(f"File not found: {emitters_file}")
+                return None
+
         except Exception as e:
-            st.error(f"Error loading data: {e}")
-        
-        return None
+            logging.error(f"A critical error occurred while loading data: {e}", exc_info=True)
+            return None
+ 
     def _get_map_data(self) -> pd.DataFrame:
         """Get data for the interactive map."""
         real_data = self._load_pipeline_data()
@@ -817,43 +850,32 @@ class SuperEmitterDashboard:
         fig.update_layout(height=500)
         return fig
     
-    def _calculate_trend_statistics(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Calculate trend statistics."""
-        # Mock trend statistics
-        emitters = data['emitter_id'].unique()
-        
-        stats = []
-        for emitter in emitters:
-            emitter_data = data[data['emitter_id'] == emitter]
-            
-            stats.append({
-                'Emitter': emitter,
-                'Trend': np.random.choice(['Increasing', 'Decreasing', 'Stable']),
-                'Slope': np.random.normal(0, 50),
-                'R²': np.random.uniform(0.3, 0.9),
-                'P-value': np.random.uniform(0.001, 0.1),
-                'Significance': np.random.choice(['Significant', 'Not Significant'])
-            })
-        
-        return pd.DataFrame(stats)
-    
-    def _detect_change_points(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Detect change points in time series."""
-        # Mock change points
-        change_points = []
-        
-        for emitter in data['emitter_id'].unique()[:3]:  # Limit to avoid clutter
-            if np.random.random() > 0.5:
-                change_points.append({
-                    'Emitter': emitter,
-                    'Change Date': datetime.now() - timedelta(days=np.random.randint(5, 25)),
-                    'Change Type': np.random.choice(['Increase', 'Decrease']),
-                    'Magnitude': np.random.uniform(100, 500),
-                    'Confidence': np.random.uniform(0.7, 0.95)
-                })
-        
-        return pd.DataFrame(change_points)
-    
+    def _calculate_trend_statistics(self, analysis_data: dict) -> pd.DataFrame:
+        """Extracts trend statistics from the loaded analysis JSON."""
+
+        trends = analysis_data.get("trend_analysis", {}).get("emitter_trends", {})
+        if not trends:
+            return pd.DataFrame()
+
+        # Convert the nested dictionary to a list of records and create a DataFrame
+        trend_list = [{'Emitter': emitter, **data} for emitter, data in trends.items()]
+        return pd.DataFrame(trend_list)
+
+    def _detect_change_points(self, analysis_data: dict) -> pd.DataFrame:
+        """Extracts change points from the loaded analysis JSON."""
+
+        change_points = analysis_data.get("change_point_analysis", {}).get("emitter_change_points", {})
+        if not change_points:
+            return pd.DataFrame()
+
+        # The data is a dict where keys are emitters and values are lists of change points
+        all_points = []
+        for emitter, points in change_points.items():
+            for point in points:
+                point['Emitter'] = emitter
+                all_points.append(point)
+
+        return pd.DataFrame(all_points)
     def _create_seasonal_decomposition(self, data: pd.DataFrame):
         """Create seasonal decomposition plot."""
         # Mock seasonal decomposition
@@ -1035,7 +1057,7 @@ class SuperEmitterDashboard:
         """Create confusion matrix visualization."""
         # Mock confusion matrix
         matrix = np.random.randint(5, 50, (2, 2))
-        
+
         fig = go.Figure(data=go.Heatmap(
             z=matrix,
             x=['Predicted Negative', 'Predicted Positive'],
@@ -1045,54 +1067,145 @@ class SuperEmitterDashboard:
             texttemplate='%{text}',
             textfont={"size": 16}
         ))
-        
-        fig# ============================================================================
-# FILE: src/visualization/dashboard.py
-# ============================================================================
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import folium
-from streamlit_folium import st_folium
-import altair as alt
-from datetime import datetime, timedelta
-import logging
-from typing import Dict, List, Optional
-import json
 
-logger = logging.getLogger(__name__)
+        fig.update_layout(title_text='Confusion Matrix', height=400)
+        return fig
+    
+    def _get_error_analysis(self) -> pd.DataFrame:
+        """Load REAL error analysis data from the latest validation run."""
+        import glob
 
-class SuperEmitterDashboard:
-    """
-    Interactive Streamlit dashboard for super-emitter monitoring and analysis.
+        # Step 1: Find the latest pipeline run directory
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        output_base_dir = os.path.join(project_root, "data", "outputs")
+        output_dirs = glob.glob(os.path.join(output_base_dir, "run_*"))
+
+        if not output_dirs:
+            # No runs found, so no data to load.
+            # The expander in the UI will just be empty.
+            return pd.DataFrame()
+
+        latest_run = max(output_dirs, key=os.path.getctime)
+
+        # Step 2: Define the path to the real error analysis file
+        # NOTE: You may need to change this filename based on your pipeline's actual output.
+        error_file = os.path.join(latest_run, "validation", "error_analysis.csv")
+
+        if not os.path.exists(error_file):
+            st.info(f"Error analysis file not found: {error_file}")
+            st.info("This section will be empty until the pipeline generates this file.")
+            return pd.DataFrame()
+
+        # Step 3: Load the real data from the file
+        try:
+            error_data = pd.read_csv(error_file)
+            return error_data
+        except Exception as e:
+            st.error(f"Error loading real error analysis data: {e}")
+            return pd.DataFrame()
     
-    Features:
-    - Real-time monitoring of super-emitters
-    - Interactive maps with temporal controls
-    - Time series analysis and trends
-    - Alert management interface
-    - Data export capabilities
-    - Performance metrics and validation
-    """
+
     
-    def __init__(self, config: Dict, tracker=None):
-        self.config = config
-        self.tracker = tracker
+    def _get_time_series_data(self, emitters: List[str]) -> pd.DataFrame:
+        """Load REAL time series data for selected emitters from the latest run."""
+        import glob
+
+        # Step 1: Find the latest pipeline run directory
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        output_base_dir = os.path.join(project_root, "data", "outputs")
+        output_dirs = glob.glob(os.path.join(output_base_dir, "run_*"))
+
+        if not output_dirs:
+            st.warning("No pipeline runs found to load time series data from.")
+            return pd.DataFrame()  # Return an empty DataFrame
+
+        latest_run = max(output_dirs, key=os.path.getctime)
+
+        # Step 2: Define the path to the real data file
+        # NOTE: You may need to change the filename based on what your pipeline actually creates.
+        time_series_file = os.path.join(latest_run, "analysis", "time_series.csv")
+
+        if not os.path.exists(time_series_file):
+            # Display a helpful message if the file doesn't exist
+            st.info(f"Time series analysis file not found in the latest run: {time_series_file}")
+            st.info("This tab will remain empty until the pipeline generates this file.")
+            return pd.DataFrame()
+
+        # Step 3: Load the data and filter it for the selected emitters
+        try:
+            all_ts_data = pd.read_csv(time_series_file, parse_dates=['timestamp'])
+
+            if not emitters:
+                # If no emitters are selected in the UI, return an empty frame
+                return pd.DataFrame()
+
+            filtered_data = all_ts_data[all_ts_data['emitter_id'].isin(emitters)]
+            return filtered_data
+
+        except Exception as e:
+            st.error(f"Error loading real time series data: {e}")
+            return pd.DataFrame()
         
-        # Dashboard state
-        if 'dashboard_data' not in st.session_state:
-            st.session_state.dashboard_data = {}
-        if 'selected_emitters' not in st.session_state:
-            st.session_state.selected_emitters = []
-        if 'date_range' not in st.session_state:
-            st.session_state.date_range = (
-                datetime.now() - timedelta(days=30),
-                datetime.now()
+    def _create_roc_curve(self):
+        """Create a REAL ROC curve from the latest validation results."""
+        from sklearn.metrics import roc_curve, auc
+        import glob
+
+        # Step 1: Find the latest pipeline run directory
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        output_base_dir = os.path.join(project_root, "data", "outputs")
+        output_dirs = glob.glob(os.path.join(output_base_dir, "run_*"))
+
+        if not output_dirs:
+            st.warning("No pipeline runs found to generate ROC curve.")
+            return go.Figure() # Return an empty figure
+
+        latest_run = max(output_dirs, key=os.path.getctime)
+
+        # Step 2: Define the path to the validation results file
+        # NOTE: You may need to change this filename.
+        validation_file = os.path.join(latest_run, "validation", "validation_results.csv")
+
+        if not os.path.exists(validation_file):
+            st.info(f"Validation results file not found: {validation_file}")
+            st.info("The ROC curve will not be displayed until this file is generated.")
+            return go.Figure()
+
+        try:
+            # Step 3: Load the validation data
+            validation_data = pd.read_csv(validation_file)
+
+            # IMPORTANT: Ensure your CSV has these columns, or rename them here.
+            true_labels = validation_data['true_label'] # Should be 0 or 1
+            pred_scores = validation_data['prediction_score'] # Should be probabilities (0.0 to 1.0)
+
+            # Step 4: Calculate ROC curve and AUC using scikit-learn
+            fpr, tpr, _ = roc_curve(true_labels, pred_scores)
+            roc_auc = auc(fpr, tpr)
+
+            # Step 5: Plot the figure with Plotly
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=fpr, y=tpr,
+                mode='lines', line=dict(color='darkorange', width=2),
+                name=f'ROC Curve (AUC = {roc_auc:.2f})'
+            ))
+            fig.add_trace(go.Scatter(
+                x=[0, 1], y=[0, 1],
+                mode='lines', line=dict(color='navy', width=2, dash='dash'),
+                name='No-Skill Classifier'
+            ))
+            fig.update_layout(
+                title='Receiver Operating Characteristic (ROC) Curve',
+                xaxis_title='False Positive Rate',
+                yaxis_title='True Positive Rate'
             )
-    
+            return fig
+
+        except Exception as e:
+            st.error(f"Error generating ROC curve from real data: {e}")
+            return go.Figure()
+
     def run_dashboard(self, port: int = 8501):
         """Run the Streamlit dashboard."""
         
@@ -1193,7 +1306,7 @@ class SuperEmitterDashboard:
         # Data refresh
         if st.sidebar.button("🔄 Refresh Data", type="primary"):
             self._refresh_data()
-            st.experimental_rerun()
+            st.rerun()
         
         # Date range selection
         st.sidebar.subheader("📅 Time Period")
@@ -1450,3 +1563,26 @@ class SuperEmitterDashboard:
             'file_size_mb': 15.7,
             'last_updated': '2 hours ago'
         }
+
+if __name__ == "__main__":
+    # This block runs the dashboard when you execute `streamlit run ...`
+    import yaml
+    from pathlib import Path
+    
+    # Load the main configuration file
+    # This assumes you are running the streamlit command from the project's root directory
+    config_path = Path("config/config.yaml")
+    
+    config = {}
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+    else:
+        # Fallback if the config is not found (though it should be)
+        st.error(f"Configuration file not found at {config_path.resolve()}. Please ensure you are running Streamlit from the project's root directory.")
+
+    # Create an instance of the dashboard class
+    dashboard = SuperEmitterDashboard(config=config, tracker=None)
+    
+    # Run the dashboard
+    dashboard.run_dashboard()
