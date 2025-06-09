@@ -1,0 +1,59 @@
+# ============================================================================
+# Relaxed Configuration for Super-Emitter Detection
+# ============================================================================
+
+# Google Earth Engine settings
+gee:
+  project_id: "sodium-lore-456715-i3"
+  service_account_file: null
+  max_retries: 3
+  timeout_seconds: 300
+
+# Data collection parameters
+data:
+  start_date: "2023-06-01"
+  end_date: "2023-06-05"
+  region_of_interest:
+    type: "bbox"  # Use specific region instead of global
+    coordinates: [-104.0, 31.0, -102.0, 33.0]  # Permian Basin (known for emissions)
+    buffer_km: 50
+  
+  tropomi:
+    collection: "COPERNICUS/S5P/OFFL/L3_CH4"
+    quality_threshold: 0.3  # Relaxed from 0.5
+    cloud_fraction_max: 0.7  # Relaxed from 0.3
+    qa_flags: ["GOOD"]
+
+# Super-emitter detection parameters (MUCH MORE RELAXED)
+super_emitters:
+  detection:
+    enhancement_threshold: 5.0  # Very low threshold (was 50.0)
+    emission_rate_threshold: 100.0  # Much lower (was 1000.0)
+    spatial_extent_min: 1  # Allow single pixels (was 4)
+    persistence_days: 1  # Only need 1 day (was 3)
+    confidence_threshold: 0.3  # Very relaxed (was 0.7)
+    
+  background:
+    method: "local_median"  # Keep this method
+    percentile: 10  # Lower percentile (was 20)
+    window_days: 7  # Shorter window (was 30)
+    spatial_radius_km: 50  # Smaller radius (was 100)
+    
+  clustering:
+    algorithm: "connected_components"  # Try alternative method
+    eps_km: 10.0  # Larger clustering distance
+    min_samples: 1  # Allow single point clusters (was 3)
+  # ADD THIS MISSING SECTION:
+  database:
+    facility_buffer_km: 2.0
+    update_frequency: "weekly"
+    validation_sources: ["GHGSAT", "AVIRIS", "ground_stations"]
+  
+
+
+# Tracking parameters (relaxed)
+tracking:
+  persistence:
+    min_detections: 1  # Accept single detections (was 5)
+    max_gap_days: 30  # Longer gaps allowed (was 14)
+    decay_factor: 0.9

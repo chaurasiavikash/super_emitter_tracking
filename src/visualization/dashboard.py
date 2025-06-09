@@ -657,24 +657,70 @@ class SuperEmitterDashboard:
                 'last_refresh': datetime.now(),
                 'mock_data': True
             }
-    
+    def _load_pipeline_data(self):
+        """Load the most recent pipeline results."""
+        import glob
+        import os
+        
+        # Find the most recent run directory - FIXED PATH
+        output_dirs = glob.glob("./data/outputs/run_*")  # Changed from ../../data/outputs/run_*
+        if not output_dirs:
+            st.warning("No pipeline runs found in ./data/outputs/")
+            return None
+        
+        latest_run = max(output_dirs, key=os.path.getctime)
+        st.info(f"Loading data from: {latest_run}")  # Add this to see what it finds
+        
+        try:
+            # Load super-emitters data
+            emitters_file = os.path.join(latest_run, "detections", "super_emitters.csv")
+            st.info(f"Looking for file: {emitters_file}")  # Add this debug info
+            
+            if os.path.exists(emitters_file):
+                data = pd.read_csv(emitters_file)
+                st.success(f"Loaded {len(data)} super-emitters!")  # Add success message
+                return data
+            else:
+                st.error(f"File not found: {emitters_file}")
+        except Exception as e:
+            st.error(f"Error loading data: {e}")
+        
+        return None
     def _get_map_data(self) -> pd.DataFrame:
         """Get data for the interactive map."""
-        # Mock data - in real implementation, get from tracker
-        np.random.seed(42)
-        n_emitters = 25
-        
-        data = {
-            'emitter_id': [f'SE_{i:04d}' for i in range(n_emitters)],
-            'lat': np.random.uniform(30, 50, n_emitters),
-            'lon': np.random.uniform(-120, -70, n_emitters),
-            'emission_rate': np.random.lognormal(7, 0.5, n_emitters),
-            'facility_type': np.random.choice(['Oil & Gas', 'Landfill', 'Agriculture'], n_emitters),
-            'alert_status': np.random.choice(['None', 'Low', 'Medium', 'High'], n_emitters, p=[0.6, 0.2, 0.15, 0.05]),
-            'last_detection': [datetime.now() - timedelta(hours=np.random.randint(1, 72)) for _ in range(n_emitters)]
-        }
-        
-        return pd.DataFrame(data)
+        real_data = self._load_pipeline_data()
+
+        if real_data is not None and not real_data.empty:
+            # Map your real columns to dashboard expected columns
+            mapped_data = pd.DataFrame({
+                'emitter_id': real_data['emitter_id'],
+                'lat': real_data['center_lat'],
+                'lon': real_data['center_lon'],
+                'emission_rate': real_data['estimated_emission_rate_kg_hr'],
+                'facility_type': real_data.get('facility_type', 'Unknown'),
+                'alert_status': 'High',  # Since these are super-emitters
+                'last_detection': real_data.get('first_detected', pd.Timestamp.now())
+            })
+            return mapped_data
+        else:
+            # Fall back to mock data if no real data found
+            st.warning("No pipeline data found. Showing mock data.")
+            # ... keep your existing mock data code below
+            np.random.seed(42)
+            n_emitters = 25
+
+            data = {
+                'emitter_id': [f'SE_{i:04d}' for i in range(n_emitters)],
+                'lat': np.random.uniform(30, 50, n_emitters),
+                'lon': np.random.uniform(-120, -70, n_emitters),
+                'emission_rate': np.random.lognormal(7, 0.5, n_emitters),
+                'facility_type': np.random.choice(['Oil & Gas', 'Landfill', 'Agriculture'], n_emitters),
+                'alert_status': np.random.choice(['None', 'Low', 'Medium', 'High'], n_emitters, p=[0.6, 0.2, 0.15, 0.05]),
+                'last_detection': [datetime.now() - timedelta(hours=np.random.randint(1, 72)) for _ in range(n_emitters)]
+            }
+
+            return pd.DataFrame(data) 
+         
     
     def _create_interactive_map(self, data: pd.DataFrame):
         """Create interactive Folium map."""

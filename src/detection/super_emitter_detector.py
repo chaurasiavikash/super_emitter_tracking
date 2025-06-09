@@ -167,30 +167,49 @@ class SuperEmitterDetector:
         logger.info(f"Detection complete. Found {len(super_emitters)} super-emitters")
         return results
     
+    # def _calculate_background(self, ds: xr.Dataset) -> xr.Dataset:
+    #     """Calculate background methane concentrations using multiple methods."""
+        
+    #     method = self.background_params['method']
+        
+    #     # TEMPORARY FIX: Always use local_median to avoid rolling percentile bug
+    #     if method == "rolling_percentile":
+    #         logger.info("Using local_median instead of rolling_percentile to avoid bug")
+    #         background = self._local_median_background(ds)
+    #     elif method == "seasonal":
+    #         background = self._seasonal_background(ds)
+    #     elif method == "local_median":
+    #         #background = self._local_median_background(ds)
+    #         background=ds.ch4.median(dim='time')  # Simple temporal median
+    #     else:
+    #         raise ValueError(f"Unknown background method: {method}")
+        
+    #     # Calculate enhancement
+    #     enhancement = ds.ch4 - background
+        
+    #     # Store in dataset
+    #     ds_result = ds.copy()
+    #     ds_result['background'] = background
+    #     ds_result['enhancement'] = enhancement
+        
+    #     return ds_result
     def _calculate_background(self, ds: xr.Dataset) -> xr.Dataset:
-        """Calculate background methane concentrations using multiple methods."""
-        
-        method = self.background_params['method']
-        
-        # TEMPORARY FIX: Always use local_median to avoid rolling percentile bug
-        if method == "rolling_percentile":
-            logger.info("Using local_median instead of rolling_percentile to avoid bug")
-            background = self._local_median_background(ds)
-        elif method == "seasonal":
-            background = self._seasonal_background(ds)
-        elif method == "local_median":
-            background = self._local_median_background(ds)
-        else:
-            raise ValueError(f"Unknown background method: {method}")
-        
+        """Calculate background methane concentrations using simple approach."""
+
+        # Simple approach: use 20th percentile of all valid data as background
+        background_value = ds.ch4.quantile(0.2, skipna=True)
+
+        # Create background field (constant value everywhere)
+        background = xr.full_like(ds.ch4, background_value)
+
         # Calculate enhancement
         enhancement = ds.ch4 - background
-        
+
         # Store in dataset
         ds_result = ds.copy()
         ds_result['background'] = background
         ds_result['enhancement'] = enhancement
-        
+
         return ds_result
         
     def _rolling_percentile_background(self, ds: xr.Dataset) -> xr.DataArray:
@@ -294,7 +313,7 @@ class SuperEmitterDetector:
             input_core_dims=[['lat', 'lon']],
             output_core_dims=[['lat', 'lon']],
             dask='parallelized'
-        )
+            ).fillna(ds.ch4.mean())  # Fill NaN with mean value
         
         return background
     
@@ -308,10 +327,14 @@ class SuperEmitterDetector:
         threshold_mask = enhancement > threshold
         
         # Method 2: Statistical outlier detection
-        enhancement_std = enhancement.std(dim=['lat', 'lon'])
-        enhancement_mean = enhancement.mean(dim=['lat', 'lon'])
+        # Method 2: Statistical outlier detection - FIXED
+        enhancement_std = enhancement.std(dim=['lat', 'lon'], skipna=True)
+        enhancement_mean = enhancement.mean(dim=['lat', 'lon'], skipna=True)
+        # Avoid division by zero/NaN
+        enhancement_std = enhancement_std.where(enhancement_std > 0, 1.0)
         z_scores = (enhancement - enhancement_mean) / enhancement_std
-        statistical_mask = z_scores > 3.0
+        z_scores = z_scores.fillna(0)  # Replace NaN with 0
+        statistical_mask = z_scores > 1.0  # Lower threshold
         
         # Method 3: Local outlier detection
         local_mask = self._local_outlier_detection(enhancement)
@@ -324,15 +347,24 @@ class SuperEmitterDetector:
         ) / 3.0
         
         # Apply confidence threshold
+        # Apply confidence threshold
         confidence_threshold = self.detection_params['confidence_threshold']
         final_mask = detection_score >= confidence_threshold
-        
+
+        # DEBUG PRINTS (keep only these):
+        # print(f"🔍 DEBUG: Enhancement threshold: {threshold}")
+        # print(f"🔍 DEBUG: Max enhancement: {enhancement.max().values:.1f}")
+        # print(f"🔍 DEBUG: Pixels above threshold: {threshold_mask.sum().values}")
+        # print(f"🔍 DEBUG: Detection pixels found: {final_mask.sum().values}")
+        # print(f"🔍 DEBUG: Max detection score: {detection_score.max().values:.3f}")
+        # print(f"🔍 DEBUG: Confidence threshold: {confidence_threshold}")
+
         # Store results
         ds_result = ds.copy()
         ds_result['detection_mask'] = final_mask
         ds_result['detection_score'] = detection_score
         ds_result['z_scores'] = z_scores
-        
+
         return ds_result
     
     def _local_outlier_detection(self, enhancement: xr.DataArray) -> xr.DataArray:
@@ -382,7 +414,9 @@ class SuperEmitterDetector:
             # Get coordinates of detected pixels
             lat_indices, lon_indices = np.where(detection_2d)
             
-            if len(lat_indices) < self.clustering_params['min_samples']:
+            # if len(lat_indices) < self.clustering_params['min_samples']:
+            #     continue
+            if len(lat_indices) < 1:  # Accept any detections
                 continue
             
             # Convert to geographic coordinates
@@ -408,6 +442,8 @@ class SuperEmitterDetector:
                 cluster['time_index'] = t
                 
             detections.extend(clusters)
+            
+            #print(f"🔍 DEBUG: Time step {t}: found {len(clusters)} clusters")
         
         logger.info(f"Found {len(detections)} spatial clusters")
         return detections
@@ -478,7 +514,9 @@ class SuperEmitterDetector:
         """Alternative clustering using connected components."""
         
         # Create binary mask
-        mask_shape = (len(np.unique(lat_indices)), len(np.unique(lon_indices)))
+        # Create binary mask - fix indexing
+        mask_shape = (np.max(lat_indices) - np.min(lat_indices) + 1, 
+              np.max(lon_indices) - np.min(lon_indices) + 1)
         binary_mask = np.zeros(mask_shape, dtype=bool)
         
         # Map indices to mask coordinates
@@ -505,9 +543,10 @@ class SuperEmitterDetector:
                 if lat_idx in orig_lat_indices and lon_idx in orig_lon_indices:
                     data_indices.append(i)
             
-            if len(data_indices) < self.clustering_params['min_samples']:
+            # if len(data_indices) < self.clustering_params['min_samples']:
+            #     continue
+            if len(data_indices) < 1:  # Accept any detections
                 continue
-            
             cluster_lats = lats[data_indices]
             cluster_lons = lons[data_indices]
             cluster_enhancements = enhancements[data_indices]
@@ -632,7 +671,7 @@ class SuperEmitterDetector:
     
     def _classify_super_emitters(self, detections: List[Dict], ds: xr.Dataset) -> pd.DataFrame:
         """Classify detections as super-emitters based on emission criteria."""
-        
+        #print(f"🔍 DEBUG: Classifying {len(detections)} detections")
         emission_threshold = self.detection_params['emission_rate_threshold']
         
         super_emitters = []
@@ -781,11 +820,18 @@ class SuperEmitterDetector:
         emitters_gdf = gpd.GeoDataFrame(super_emitters, geometry=emitter_points, crs='EPSG:4326')
         
         # Buffer facilities
+        # Buffer facilities with proper CRS handling
+        # facilities_buffered = self.known_facilities.copy()
+        # if len(facilities_buffered) > 0:
+        #     # Convert to a projected CRS for accurate buffering
+        #     facilities_buffered = facilities_buffered.to_crs('EPSG:3857')  # Web Mercator
+        #     facilities_buffered['geometry'] = facilities_buffered.geometry.buffer(buffer_km * 1000)  # Convert km to meters
+        #     facilities_buffered = facilities_buffered.to_crs('EPSG:4326')  # Back to lat/lon
+        # Buffer facilities
         facilities_buffered = self.known_facilities.copy()
         facilities_buffered['geometry'] = facilities_buffered.geometry.buffer(
             buffer_km / 111.32  # Convert km to degrees (rough)
         )
-        
         # Spatial join
         joined = gpd.sjoin(emitters_gdf, facilities_buffered, how='left', predicate='within')
         
