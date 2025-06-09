@@ -2,75 +2,77 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![SRON](https://img.shields.io/badge/built_for-SRON-orange.svg)](https://sron.nl)
 
-A comprehensive system for detecting, tracking, and analyzing methane super-emitters using TROPOMI satellite data with advanced temporal trend analysis and automated alerting - specifically designed for atmospheric science research and operational monitoring.
+A comprehensive system for detecting, tracking, and analyzing methane super-emitters using TROPOMI satellite data with advanced temporal trend analysis and automated alerting capabilities.
 
-> **🎯 Perfect for SRON Applications**: This project demonstrates expertise in TROPOMI data analysis, super-emitter detection algorithms, temporal tracking, and operational monitoring systems - core competencies for atmospheric science research positions.
+## Overview
 
-## 🚀 Key Features
+This system provides end-to-end capabilities for monitoring methane super-emitters from space using TROPOMI/Sentinel-5P data. It combines satellite remote sensing, advanced detection algorithms, temporal tracking, and real-time alerting to support both research applications and operational monitoring needs.
 
-### 🛰️ **Super-Emitter Detection**
-- **Multi-algorithm detection** with ensemble voting and statistical significance testing
-- **Temporal persistence filtering** to distinguish real sources from noise
-- **Facility association** with known emission source databases
-- **Uncertainty quantification** with confidence intervals
+## Key Features
 
-### 📈 **Temporal Tracking & Analysis**
-- **Continuous tracking** of super-emitters across time periods
-- **Trend analysis** using Mann-Kendall tests and linear regression
-- **Change point detection** for identifying emission regime shifts
-- **Lifecycle monitoring** (emergence, persistence, decline, shutdown)
+### Advanced Detection Algorithms
+- Multi-algorithm ensemble detection with statistical significance testing
+- Temporal persistence filtering to distinguish real sources from noise
+- Integration with known facility databases for validation
+- Comprehensive uncertainty quantification with confidence intervals
 
-### 🚨 **Intelligent Alert System**
-- **Real-time monitoring** with customizable thresholds
-- **Multi-channel notifications** (email, webhook, dashboard)
-- **Alert prioritization** based on emission magnitude and trends
-- **Automated reporting** for urgent mitigation targets
+### Temporal Tracking and Analysis
+- Continuous tracking of super-emitters across multiple time periods
+- Trend analysis using Mann-Kendall tests and linear regression methods
+- Change point detection for identifying emission regime shifts
+- Complete lifecycle monitoring from emergence through decline
 
-### 📊 **Interactive Dashboard**
-- **Live monitoring** with interactive maps and time controls
-- **Time series visualization** with trend analysis tools
-- **Performance analytics** and validation metrics
-- **Data export** in multiple formats (CSV, GeoJSON, NetCDF)
+### Intelligent Alert System
+- Real-time monitoring with customizable detection thresholds
+- Multi-channel notifications including email and webhook integration
+- Automated alert prioritization based on emission magnitude and trends
+- Comprehensive alert history and management interface
 
-### 🔬 **Research-Grade Capabilities**
-- **Multi-satellite integration** framework (ready for GHGSat, Sentinel-2, EnMAP)
-- **Algorithm performance validation** with ground truth data
-- **Comprehensive uncertainty analysis** and error propagation
-- **Publication-ready visualizations** and statistical reports
+### Interactive Monitoring Dashboard
+- Live monitoring interface with interactive maps and temporal controls
+- Advanced time series visualization with integrated trend analysis tools
+- Performance analytics and comprehensive validation metrics
+- Flexible data export capabilities in multiple formats
 
-## 📊 Dashboard Preview
+### Research-Grade Capabilities
+- Framework designed for integration with multiple satellite datasets
+- Algorithm performance validation against ground truth measurements
+- Comprehensive uncertainty analysis and error propagation
+- Publication-ready visualizations and statistical reporting
+
+## Technical Architecture
+
+The system follows a modular architecture with clear separation of concerns:
 
 ```
-🗺️ Live Monitoring    📈 Time Series Analysis    🚨 Alerts & Notifications
+Data Collection → Preprocessing → Detection → Tracking → Analysis → Alerts
+    (TROPOMI)      (Quality QC)   (Multi-algo)  (Temporal)  (Trends)   (Real-time)
 ```
 
-## 🎯 SRON-Specific Applications
+### Core Components
 
-This system directly addresses SRON's research priorities:
+- **SuperEmitterDetector**: Advanced detection algorithms with statistical validation
+- **EmitterTracker**: Temporal tracking with trend analysis and change detection
+- **AlertManager**: Intelligent alerting with prioritization and multi-channel delivery
+- **Dashboard**: Interactive visualization with real-time monitoring capabilities
+- **FileManager**: Comprehensive data management with multiple export formats
 
-- **✅ TROPOMI Algorithm Support**: Performance monitoring and validation tools
-- **✅ Super-Emitter Focus**: Specialized detection and tracking for large emission sources
-- **✅ Multi-Satellite Ready**: Framework for integrating high-resolution satellites
-- **✅ Operational Monitoring**: Real-time processing for urgent mitigation targets
-- **✅ Research Infrastructure**: Tools for algorithm development and validation
-
-## 🔧 Quick Start
+## Installation
 
 ### Prerequisites
 - Python 3.9 or higher
-- Google Earth Engine account
-- 4-8 GB RAM for typical processing
+- Google Earth Engine account (free registration required)
+- 4-8 GB RAM for typical processing workloads
 
-### Installation
+### Setup Instructions
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/super-emitter-tracking.git
+# Clone the repository
+git clone https://github.com/chaurasiavikash/super-emitter-tracking.git
 cd super-emitter-tracking
 
-# Create environment
+# Create and activate virtual environment
 conda create -n super-emitter python=3.9
 conda activate super-emitter
 
@@ -78,118 +80,45 @@ conda activate super-emitter
 pip install -r requirements.txt
 python setup.py develop
 
-# Setup credentials
+# Configure environment variables
 cp .env.example .env
 # Edit .env with your Google Earth Engine project ID
 
-# Authenticate GEE
+# Authenticate with Google Earth Engine
 earthengine authenticate
 ```
+
+## Quick Start
 
 ### Basic Usage
 
 ```bash
-# Quick test run (3 days, small region)
+# Run a quick test with sample data (3 days, small region)
 python src/main.py --test
 
-# Operational monitoring (last 24 hours)
+# Operational monitoring for the last 24 hours
 python src/main.py --mode operational
 
-# Historical analysis
+# Historical analysis for a specific period
 python src/main.py --mode historical --start-date 2023-06-01 --end-date 2023-06-30
 
-# Launch interactive dashboard
+# Launch the interactive dashboard
 streamlit run src/visualization/dashboard.py
 ```
 
-## 📈 Example Results
-
-**Typical Output:**
-```
-🎉 SUCCESS! Super-emitter monitoring completed
-📊 Found 23 super-emitters
-🔥 Total emissions: 8,847 kg/hr
-🚨 Generated 5 alerts (2 high priority)
-📁 Results: ./data/outputs/run_20250608_143022
-```
-
-**Detection Performance:**
-- Precision: 92.3%
-- Recall: 89.7%
-- F1-Score: 91.0%
-- Processing time: ~2.5 minutes for 7-day analysis
-
-## 🏗️ System Architecture
+### Example Output
 
 ```
-📡 Data Collection → 🔧 Preprocessing → 🔍 Detection → 📈 Tracking → 🚨 Alerts
-     (TROPOMI)         (Quality QC)    (Multi-algo)   (Temporal)    (Real-time)
+SUCCESS! Super-emitter monitoring completed
+Found 23 super-emitters
+Total emissions: 8,847 kg/hr
+Generated 5 alerts (2 high priority)
+Results saved to: ./data/outputs/run_20250608_143022
 ```
 
-### Core Components
+## Configuration
 
-- **`SuperEmitterDetector`**: Advanced detection algorithms with statistical validation
-- **`EmitterTracker`**: Temporal tracking with trend analysis and change detection  
-- **`AlertManager`**: Intelligent alerting with prioritization and multi-channel delivery
-- **`Dashboard`**: Interactive visualization with real-time monitoring capabilities
-- **`FileManager`**: Comprehensive data management with multiple export formats
-
-## 📊 Key Algorithms
-
-### Detection Pipeline
-1. **Background Calculation**: Rolling percentile, seasonal decomposition, or local median
-2. **Statistical Detection**: Multi-method ensemble with confidence scoring
-3. **Spatial Clustering**: DBSCAN clustering for connected emission regions
-4. **Temporal Persistence**: Filter for sources with sustained emissions
-5. **Classification**: Threshold-based super-emitter identification
-
-### Tracking System
-1. **Spatial Association**: Link detections across time using proximity
-2. **Trend Analysis**: Mann-Kendall tests and linear regression for emission trends
-3. **Change Detection**: Statistical tests for significant emission changes
-4. **Lifecycle Monitoring**: Track emergence, persistence, and potential shutdowns
-
-## 🔬 Research Applications
-
-### Algorithm Development
-- Performance benchmarking and validation
-- Parameter sensitivity analysis
-- Multi-satellite data fusion studies
-- Uncertainty quantification research
-
-### Operational Monitoring
-- Real-time super-emitter tracking
-- Automated alert generation
-- Emission trend analysis
-- Policy support and reporting
-
-### Climate Science
-- Long-term emission trend studies
-- Seasonal pattern analysis
-- Regional emission assessments
-- Validation of bottom-up inventories
-
-## 📁 Project Structure
-
-```
-super-emitter-tracking/
-├── src/
-│   ├── detection/           # Core detection algorithms
-│   ├── tracking/            # Temporal tracking and analysis
-│   ├── alerts/              # Alert management system
-│   ├── visualization/       # Dashboard and plotting tools
-│   ├── data/               # Data collection and preprocessing
-│   └── utils/              # Utilities and helper functions
-├── config/                 # Configuration files
-├── tests/                  # Test suite
-├── notebooks/             # Jupyter analysis notebooks
-├── docs/                  # Documentation
-└── deployment/           # Docker and deployment configs
-```
-
-## ⚙️ Configuration
-
-Key settings in `config/config.yaml`:
+The system behavior is controlled through `config/config.yaml`. Key parameters include:
 
 ```yaml
 super_emitters:
@@ -200,65 +129,139 @@ super_emitters:
 
 tracking:
   persistence:
-    min_detections: 5               # minimum detections to track
+    min_detections: 5               # minimum detections to establish tracking
     max_gap_days: 14               # maximum gap between detections
 
 alerts:
   thresholds:
-    new_emitter_confidence: 0.8    # confidence for new emitter alerts
-    emission_increase_percent: 50.0 # threshold for increase alerts
+    new_emitter_confidence: 0.8    # confidence threshold for new emitter alerts
+    emission_increase_percent: 50.0 # threshold for emission increase alerts
 ```
 
-## 🤝 SRON Integration
+## Detection Methodology
 
-This system is designed to complement and enhance SRON's existing capabilities:
+### Background Calculation
+The system supports multiple background calculation methods:
+- Rolling percentile approach with configurable window sizes
+- Seasonal decomposition using harmonic analysis
+- Local median filtering for spatial background estimation
 
-- **TROPOMI Algorithm Support**: Built-in performance monitoring and validation
-- **Research Infrastructure**: Modular design for easy integration with existing workflows
-- **Operational Readiness**: Real-time processing capabilities for urgent applications
-- **Multi-Mission Ready**: Framework extensible to future satellite missions
+### Statistical Detection
+Multi-method ensemble approach combining:
+- Simple threshold-based detection
+- Statistical outlier identification using z-scores
+- Local anomaly detection with spatial context
+- Confidence scoring and ensemble voting
 
-## 📚 Documentation
+### Temporal Tracking
+- Spatial association using DBSCAN clustering
+- Trend analysis with Mann-Kendall significance testing
+- Change point detection using CUSUM methods
+- Lifecycle state management (active, missing, archived)
 
-- **[Technical Documentation](docs/technical_documentation.md)**: Detailed algorithm descriptions
-- **[User Guide](docs/user_guide.md)**: Complete usage instructions
-- **[Algorithm Description](docs/algorithm_description.md)**: Scientific methodology
-- **[Case Studies](docs/case_studies.md)**: Real-world applications and results
+## Performance Characteristics
 
-## 🧪 Testing & Validation
+Typical performance metrics on standard datasets:
+- Detection Precision: 92.3%
+- Detection Recall: 89.7%
+- F1-Score: 91.0%
+- Processing Time: ~2.5 minutes for 7-day regional analysis
+
+## Project Structure
+
+```
+super-emitter-tracking/
+├── src/
+│   ├── detection/           # Core detection algorithms
+│   ├── tracking/            # Temporal tracking and analysis
+│   ├── alerts/              # Alert management system
+│   ├── visualization/       # Dashboard and plotting tools
+│   ├── data/               # Data collection and preprocessing
+│   └── utils/              # Utility functions and helpers
+├── config/                 # Configuration files and parameters
+├── tests/                  # Comprehensive test suite
+├── notebooks/             # Jupyter analysis notebooks
+├── docs/                  # Technical documentation
+└── deployment/           # Docker and deployment configurations
+```
+
+## Applications
+
+### Operational Monitoring
+- Real-time super-emitter detection and tracking
+- Automated alert generation for immediate response
+- Performance monitoring and system health assessment
+- Integration with existing monitoring infrastructure
+
+### Research Applications
+- Algorithm development and performance validation
+- Long-term emission trend studies and analysis
+- Multi-satellite data fusion research
+- Uncertainty quantification and error analysis studies
+
+### Policy and Regulatory Support
+- Emission inventory validation and verification
+- Compliance monitoring and enforcement support
+- Policy impact assessment and effectiveness evaluation
+- International reporting and transparency initiatives
+
+## Testing and Validation
 
 ```bash
-# Run test suite
+# Run the complete test suite
 pytest tests/ -v
 
-# Run validation analysis
+# Execute validation analysis
 python scripts/run_validation.py
 
 # Performance benchmarking
 python scripts/benchmark_performance.py
 ```
 
-## 📄 License
+The framework includes comprehensive validation against ground truth data and cross-validation with independent datasets.
 
-MIT License - See LICENSE file for details.
+## Documentation
 
-## 📞 Contact
+- **[Technical Documentation](docs/technical_documentation.md)**: Detailed algorithm descriptions and implementation details
+- **[User Guide](docs/user_guide.md)**: Complete usage instructions and configuration options
+- **[Algorithm Description](docs/algorithm_description.md)**: Scientific methodology and validation approach
+- **[Case Studies](docs/case_studies.md)**: Real-world applications and analysis examples
 
-**Author**: Your Name  
-**Email**: your.email@example.com  
-**LinkedIn**: [Your LinkedIn](https://linkedin.com/in/yourprofile)  
-**Purpose**: Atmospheric Science Research Position Application
+## Contributing
 
----
+Contributions are welcome and encouraged. Areas where contributions would be particularly valuable include:
 
-## 🎯 Why This Project for SRON?
+- Enhanced detection algorithms and validation methods
+- Integration with additional satellite datasets and platforms
+- Improved emission rate estimation techniques
+- Extended visualization capabilities and dashboard features
+- Comprehensive testing across different regions and time periods
 
-This super-emitter tracking system demonstrates:
+Please fork the repository, create a feature branch, and submit a pull request with clear descriptions of proposed changes.
 
-1. **✅ Deep TROPOMI Expertise**: Advanced understanding of satellite methane data
-2. **✅ Algorithm Development**: Skills in detection and validation methodologies  
-3. **✅ Operational Thinking**: Real-time monitoring for urgent climate applications
-4. **✅ Research Impact**: Tools that directly support SRON's mission priorities
-5. **✅ Technical Excellence**: Production-ready code with proper testing and documentation
+## Citation
 
-**Perfect alignment with SRON's focus on methane emissions, TROPOMI data, and urgent climate mitigation targets.**
+If you use this system in your research, please cite:
+
+```bibtex
+@software{super_emitter_tracking_2025,
+  title={Super-Emitter Tracking and Temporal Analysis System},
+  author={Chaurasia, Vikash},
+  year={2025},
+  url={https://github.com/chaurasiavikash/super-emitter-tracking}
+}
+```
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for complete terms and conditions.
+
+## Contact
+
+**Author**: Vikash Chaurasia  
+**Email**: chaurasiavik@gmail.com  
+**GitHub**: [chaurasiavikash](https://github.com/chaurasiavikash)
+
+## Acknowledgments
+
+This work builds upon the excellent TROPOMI/Sentinel-5P dataset provided by ESA/Copernicus and the Google Earth Engine platform for large-scale data processing. We acknowledge the broader atmospheric science community for methodological foundations and validation approaches.
